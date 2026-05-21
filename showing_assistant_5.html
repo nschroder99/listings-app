@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Showing Assistant</title>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg: #ffffff; --bg2: #f3f3f0; --text: #1a1a1a; --text2: #6b6b66; --text3: #9b9b96;
+    --border: #e5e5e2; --border2: #d0d0cc; --info: #185FA5; --infobg: #E6F1FB; --danger: #e24b4a;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1f1f1d; --bg2: #2a2a27; --text: #f0efea; --text2: #a8a79f; --text3: #76756e;
+      --border: #38382f; --border2: #45453c; --info: #85B7EB; --infobg: #0C447C; --danger: #F09595;
+    }
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; background: var(--bg2); }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; color: var(--text); }
+  #root { max-width: 520px; margin: 0 auto; background: var(--bg); min-height: 100vh; }
+  input, select, textarea, button { font-family: inherit; }
+  .topbar { padding: 14px 16px; border-bottom: 0.5px solid var(--border); position: sticky; top: 0; background: var(--bg); z-index: 10; }
+  .topbar-title { font-size: 17px; font-weight: 600; margin: 0 0 10px 0; }
+  .seg { display: flex; background: var(--bg2); border-radius: 8px; padding: 3px; gap: 2px; }
+  .seg button { flex: 1; border: none; background: transparent; font-size: 13px; padding: 9px; border-radius: 6px; cursor: pointer; color: var(--text2); font-weight: 500; }
+  .seg button.on { background: var(--bg); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
+  .search { padding: 12px 16px 6px; }
+  .search input { width: 100%; height: 40px; padding: 0 12px; border: 0.5px solid var(--border2); border-radius: 8px; font-size: 16px; background: var(--bg); color: var(--text); }
+  .search input:focus { outline: none; border-color: var(--info); }
+  .chips { display: flex; gap: 6px; padding: 8px 16px 12px; overflow-x: auto; }
+  .chips::-webkit-scrollbar { display: none; }
+  .chip { font-size: 13px; padding: 7px 14px; border-radius: 20px; border: 0.5px solid var(--border); background: transparent; color: var(--text2); white-space: nowrap; cursor: pointer; }
+  .chip.on { background: var(--text); color: var(--bg); border-color: var(--text); }
+  .row { padding: 15px 16px; border-bottom: 0.5px solid var(--border); cursor: pointer; }
+  .row:active { background: var(--bg2); }
+  .row-top { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+  .row-addr { font-size: 15px; font-weight: 500; line-height: 1.3; }
+  .row-price { font-size: 15px; font-weight: 600; white-space: nowrap; }
+  .row-meta { font-size: 12px; color: var(--text2); margin-top: 4px; }
+  .badge { display: inline-block; font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 600; margin-left: 6px; vertical-align: middle; }
+  .b-active { background: #EAF3DE; color: #3B6D11; }
+  .b-contract { background: #FAEEDA; color: #854F0B; }
+  .b-sold { background: #ECEAE3; color: #444441; }
+  .empty { padding: 50px 20px; text-align: center; color: var(--text2); font-size: 14px; line-height: 1.6; }
+  .back { padding: 14px 16px; font-size: 15px; color: var(--text2); cursor: pointer; border-bottom: 0.5px solid var(--border); display: flex; align-items: center; }
+  .hero { padding: 18px 16px 16px; border-bottom: 0.5px solid var(--border); }
+  .hero-addr-ro { font-size: 18px; font-weight: 600; line-height: 1.25; }
+  .hero-bldg { margin-top: 6px; }
+  .status-pick { display: flex; gap: 6px; margin-top: 16px; }
+  .status-pick button { flex: 1; font-size: 13px; padding: 9px; border-radius: 8px; border: 0.5px solid var(--border); background: transparent; cursor: pointer; color: var(--text2); font-weight: 500; }
+  .status-pick button:disabled { cursor: default; }
+  .status-pick button.on-active { background: #EAF3DE; color: #3B6D11; border-color: #97C459; }
+  .status-pick button.on-contract { background: #FAEEDA; color: #854F0B; border-color: #EF9F27; }
+  .status-pick button.on-sold { background: #ECEAE3; color: #444441; border-color: #B4B2A9; }
+  .sec { padding: 16px; border-bottom: 0.5px solid var(--border); }
+  .sec-h { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 12px 0; font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
+  .sec-h .src { text-transform: none; letter-spacing: 0; font-weight: 400; color: var(--text3); font-size: 11px; }
+  .fld { display: flex; align-items: center; gap: 10px; padding: 7px 0; }
+  .fld label { font-size: 13px; color: var(--text2); width: 116px; flex-shrink: 0; }
+  .fld input, .fld select { flex: 1; height: 38px; padding: 0 10px; border: 0.5px solid var(--border); border-radius: 7px; font-size: 15px; background: var(--bg); color: var(--text); min-width: 0; }
+  .fld input:focus, .fld select:focus { outline: none; border-color: var(--info); }
+  .fld-ro { display: flex; align-items: baseline; gap: 10px; padding: 8px 0; border-bottom: 0.5px solid var(--border); }
+  .fld-ro:last-child { border-bottom: none; }
+  .fld-ro label { font-size: 13px; color: var(--text2); width: 116px; flex-shrink: 0; }
+  .fld-ro .val { font-size: 15px; color: var(--text); font-weight: 500; flex: 1; }
+  .fld-ro .val.empty-val { color: var(--text3); font-weight: 400; font-style: italic; }
+  .note { display: flex; gap: 8px; padding: 7px 0; align-items: flex-start; }
+  .note textarea { flex: 1; min-height: 42px; padding: 9px 10px; border: 0.5px solid var(--border); border-radius: 7px; font-size: 15px; resize: vertical; background: var(--bg); color: var(--text); line-height: 1.4; }
+  .note textarea:focus { outline: none; border-color: var(--info); }
+  .icon-btn { background: transparent; border: none; cursor: pointer; color: var(--text3); padding: 8px; font-size: 20px; line-height: 1; flex-shrink: 0; }
+  .icon-btn:active { color: var(--danger); }
+  .add-btn { width: 100%; padding: 11px; border: 0.5px dashed var(--border2); border-radius: 8px; background: transparent; color: var(--text2); font-size: 14px; cursor: pointer; margin-top: 8px; }
+  .add-btn:active { background: var(--bg2); }
+  .save-state { font-size: 11px; color: var(--text3); text-align: center; padding: 14px; }
+  .bldg-tag { font-size: 11px; color: var(--info); background: var(--infobg); padding: 3px 9px; border-radius: 10px; font-weight: 600; }
+  .amenity-row { display: flex; gap: 8px; padding: 6px 0; }
+  .amenity-row input { flex: 1; height: 38px; padding: 0 10px; border: 0.5px solid var(--border); border-radius: 7px; font-size: 15px; background: var(--bg); color: var(--text); min-width: 0; }
+  .amenity-row input.aname { flex: 2; }
+  .amenity-ro { display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px; border-bottom: 0.5px solid var(--border); }
+  .amenity-ro:last-child { border-bottom: none; }
+  .amenity-ro .afee-ro { color: var(--text2); font-size: 13px; }
+  .loading { padding: 60px 20px; text-align: center; color: var(--text2); }
+  .seed-btn { margin: 10px 16px; padding: 11px; width: calc(100% - 32px); border: 0.5px solid var(--border2); border-radius: 8px; background: transparent; font-size: 14px; cursor: pointer; color: var(--text2); }
+  .addr-input { font-size: 18px; font-weight: 600; width: 100%; border: 0.5px solid var(--border); border-radius: 7px; padding: 8px 10px; background: var(--bg); color: var(--text); }
+  .addr-input:focus { outline: none; border-color: var(--info); }
+  .link-select { width: 100%; height: 38px; border-radius: 7px; border: 0.5px solid var(--border); padding: 0 10px; background: var(--bg); color: var(--text); font-size: 15px; }
+  .edit-toggle { background: var(--text); color: var(--bg); border: none; border-radius: 8px; padding: 8px 16px; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .edit-toggle.editing { background: #3B6D11; color: #fff; }
+  .edit-bar { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+  .editing-banner { background: #EAF3DE; color: #3B6D11; font-size: 12px; font-weight: 600; text-align: center; padding: 7px; }
+  .note-empty-ro { font-size: 14px; color: var(--text3); font-style: italic; padding: 4px 0; }
+  .note-ro { font-size: 14px; color: var(--text); line-height: 1.5; padding: 8px 0; border-bottom: 0.5px solid var(--border); }
+  .note-ro:last-child { border-bottom: none; }
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 24px; }
+  .modal { background: var(--bg); border-radius: 14px; padding: 22px 20px; max-width: 340px; width: 100%; }
+  .modal h4 { margin: 0 0 8px; font-size: 17px; font-weight: 600; }
+  .modal p { margin: 0 0 18px; font-size: 14px; color: var(--text2); line-height: 1.5; }
+  .modal-btns { display: flex; gap: 10px; }
+  .modal-btns button { flex: 1; padding: 11px; border-radius: 9px; font-size: 15px; font-weight: 600; cursor: pointer; border: 0.5px solid var(--border2); }
+  .modal-cancel { background: transparent; color: var(--text); }
+  .modal-delete { background: var(--danger); color: #fff; border-color: var(--danger); }
+  .delete-listing-btn { width: 100%; padding: 12px; border: 0.5px solid var(--danger); border-radius: 8px; background: transparent; color: var(--danger); font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 4px; }
+  .delete-listing-btn:active { background: var(--danger); color: #fff; }
+</style>
+</head>
+<body>
+<div id="root"><div class="loading">Loading…</div></div>
+
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+const STORAGE_KEY = 'showing_assistant_v1';
+const SUPABASE_URL = 'https://dlemsbbvsftxdchdsztt.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_OOvTsDO48LGHDm8h9dOv9Q_xienRnIs';
+const ROW_ID = 'main';
+
+const sb = (window.supabase && SUPABASE_URL)
+  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+  : null;
+
+const store = {
+  async get() {
+    if (sb) {
+      try {
+        const { data, error } = await sb.from('app_state').select('data').eq('id', ROW_ID).single();
+        if (!error && data) {
+          try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data.data)); } catch(e){}
+          return JSON.stringify(data.data);
+        }
+      } catch(e){}
+    }
+    return localStorage.getItem(STORAGE_KEY);
+  },
+  async set(val) {
+    let okLocal = false;
+    try { localStorage.setItem(STORAGE_KEY, val); okLocal = true; } catch(e){}
+    if (sb) {
+      try {
+        const { error } = await sb.from('app_state').update({ data: JSON.parse(val), updated_at: new Date().toISOString() }).eq('id', ROW_ID);
+        if (!error) return true;
+      } catch(e){}
+      return okLocal;
+    }
+    return okLocal;
+  }
+};
+
+const STATUS_LABELS = { active: 'Active', contract: 'In contract', sold: 'Sold' };
+
+const LISTING_FIELDS = [
+  { key: 'price', label: 'Price', type: 'text', placeholder: '$7,995,000' },
+  { key: 'monthly_type', label: 'Monthly type', type: 'select', options: ['MT (co-op)', 'CC (condo)'] },
+  { key: 'monthly_amount', label: 'MT / CC', type: 'text', placeholder: '$5,840 / mo' },
+  { key: 'ret', label: 'RET', type: 'text', placeholder: '$3,210 / mo' },
+  { key: 'sqft', label: 'Square footage', type: 'text', placeholder: '2,407' },
+  { key: 'beds', label: 'Beds', type: 'text', placeholder: '3' },
+  { key: 'baths', label: 'Baths', type: 'text', placeholder: '3.5' },
+  { key: 'wd', label: 'W/D', type: 'select', options: ['Yes (in unit)', 'Allowed', 'Not allowed'] },
+  { key: 'ac', label: 'AC', type: 'text', placeholder: 'Central air; window allowed' },
+  { key: 'purchased', label: 'Purchased in', type: 'text', placeholder: '2018' },
+  { key: 'renovated', label: 'Renovated', type: 'text', placeholder: '2023 — kitchen & baths' },
+];
+
+const BUILDING_FIELDS = [
+  { key: 'year_built', label: 'Year built', type: 'text', placeholder: '2019' },
+  { key: 'num_units', label: '# of units', type: 'text', placeholder: '285' },
+  { key: 'll11', label: 'Local Law 11?', type: 'text', placeholder: 'None current / facade 2024' },
+  { key: 'flip_tax', label: 'Flip tax / contrib.', type: 'text', placeholder: '2% paid by seller' },
+  { key: 'pets', label: 'Pet policy', type: 'text', placeholder: 'Yes, 2 max' },
+  { key: 'pied', label: 'Pied-à-terres?', type: 'select', options: ['Allowed', 'Case by case', 'Not allowed'] },
+];
+
+const SEED = {
+  buildings: {
+    '15-hudson-yards': {
+      id: '15-hudson-yards', name: '15 Hudson Yards', area: 'West Chelsea',
+      fields: { year_built: '2019', num_units: '285', pets: 'Yes, 2 max', pied: 'Allowed', flip_tax: '2% paid by buyer' },
+      amenities: [ { name: 'Pool & spa', fee: '' }, { name: 'Fitness center', fee: 'Included' }, { name: 'Private dining', fee: '$150/event' } ],
+      customFields: []
+    }
+  },
+  listings: {
+    '31259530': {
+      id: '31259530', buildingId: '15-hudson-yards', address: '15 Hudson Yards, Apt 71A', status: 'active',
+      fields: { price: '$7,995,000', monthly_type: 'CC (condo)', monthly_amount: '$5,840 / mo', ret: '$3,210 / mo', sqft: '2,407', beds: '3', baths: '3.5', wd: 'Yes (in unit)', ac: 'Central air', purchased: '2019', renovated: '2023 — floors refinished' },
+      notes: [ { id: 'n1', text: 'W/D area was previously a powder room — restorable to half bath.' } ],
+      customFields: []
+    },
+    '16193123': {
+      id: '16193123', buildingId: '15-hudson-yards', address: '15 Hudson Yards, Apt 39D', status: 'active',
+      fields: { price: '$3,295,000', monthly_type: 'CC (condo)', monthly_amount: '$2,910 / mo', ret: '$1,640 / mo', sqft: '1,555', beds: '2', baths: '2.5', wd: 'Yes (in unit)', ac: 'Central air' },
+      notes: [], customFields: []
+    }
+  }
+};
+
+function uid() { return Math.random().toString(36).slice(2, 9); }
+
+function migrate(data) {
+  if (!data.buildings) data.buildings = {};
+  if (!data.listings) data.listings = {};
+  Object.values(data.listings).forEach(l => {
+    if (!l.fields) l.fields = {};
+    if (!l.notes) l.notes = [];
+    if (!l.customFields) l.customFields = [];
+    if (!l.status) l.status = 'active';
+  });
+  Object.values(data.buildings).forEach(b => {
+    if (!b.fields) b.fields = {};
+    if (!b.amenities) b.amenities = [];
+    if (!b.customFields) b.customFields = [];
+  });
+  return data;
+}
+
+function ConfirmModal({ title, message, onConfirm, onCancel }) {
+  return (
+    <div className="modal-overlay" onClick={onCancel}>
+      <div className="modal" onClick={e => e.stopPropagation()}>
+        <h4>{title}</h4>
+        <p>{message}</p>
+        <div className="modal-btns">
+          <button className="modal-cancel" onClick={onCancel}>Cancel</button>
+          <button className="modal-delete" onClick={onConfirm}>Delete</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function App() {
+  const [data, setData] = useState(null);
+  const [tab, setTab] = useState('active');
+  const [filter, setFilter] = useState('all');
+  const [search, setSearch] = useState('');
+  const [openId, setOpenId] = useState(null);
+  const [openEditing, setOpenEditing] = useState(false);
+  const [saveLabel, setSaveLabel] = useState('');
+  const saveTimer = useRef(null);
+
+  useEffect(() => {
+    (async () => {
+      let raw = await store.get();
+      let d;
+      if (raw) { try { d = JSON.parse(raw); } catch(e) { d = null; } }
+      if (!d) { d = JSON.parse(JSON.stringify(SEED)); await store.set(JSON.stringify(d)); }
+      setData(migrate(d));
+    })();
+  }, []);
+
+  const dirtyUntil = useRef(0);
+
+  const persist = useCallback((next) => {
+    setData(next);
+    dirtyUntil.current = Date.now() + 4000;
+    setSaveLabel('Saving…');
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(async () => {
+      const ok = await store.set(JSON.stringify(next));
+      dirtyUntil.current = Date.now() + 2000;
+      setSaveLabel(ok ? 'Saved' : 'Save failed');
+      setTimeout(() => setSaveLabel(''), 1500);
+    }, 500);
+  }, []);
+
+  useEffect(() => {
+    const iv = setInterval(async () => {
+      if (Date.now() < dirtyUntil.current) return;
+      const raw = await store.get();
+      if (!raw) return;
+      try {
+        const fresh = JSON.parse(raw);
+        setData(prev => {
+          if (!prev) return migrate(fresh);
+          if (JSON.stringify(prev) === JSON.stringify(fresh)) return prev;
+          return migrate(fresh);
+        });
+      } catch(e){}
+    }, 20000);
+    return () => clearInterval(iv);
+  }, []);
+
+  if (!data) return <div className="loading">Loading…</div>;
+
+  if (openId && data.listings[openId]) {
+    return <Detail listing={data.listings[openId]} building={data.buildings[data.listings[openId].buildingId]}
+      onBack={() => { setOpenId(null); setOpenEditing(false); }} data={data} persist={persist} saveLabel={saveLabel} startEditing={openEditing}
+      onDelete={() => {
+        const next = { ...data, listings: { ...data.listings } };
+        delete next.listings[openId];
+        persist(next); setOpenId(null); setOpenEditing(false);
+      }} />;
+  }
+
+  const inTab = Object.values(data.listings).filter(l => tab === 'active' ? l.status !== 'sold' : l.status === 'sold');
+  const filtered = inTab.filter(l => {
+    if (filter === 'active' && l.status !== 'active') return false;
+    if (filter === 'contract' && l.status !== 'contract') return false;
+    if (!search.trim()) return true;
+    const q = search.toLowerCase();
+    const b = data.buildings[l.buildingId];
+    return (l.address || '').toLowerCase().includes(q) || (b && (b.name || '').toLowerCase().includes(q));
+  });
+  filtered.sort((a, b) => (a.address || '').localeCompare(b.address || ''));
+
+  const activeCount = Object.values(data.listings).filter(l => l.status !== 'sold').length;
+  const soldCount = Object.values(data.listings).filter(l => l.status === 'sold').length;
+
+  return (
+    <div>
+      <div className="topbar">
+        <h2 className="topbar-title">Showing assistant</h2>
+        <div className="seg">
+          <button className={tab === 'active' ? 'on' : ''} onClick={() => setTab('active')}>Current ({activeCount})</button>
+          <button className={tab === 'sold' ? 'on' : ''} onClick={() => setTab('sold')}>Sold ({soldCount})</button>
+        </div>
+      </div>
+      <div className="search">
+        <input placeholder="Search address or building…" value={search} onChange={e => setSearch(e.target.value)} />
+      </div>
+      {tab === 'active' && (
+        <div className="chips">
+          {['all', 'active', 'contract'].map(f => (
+            <button key={f} className={'chip ' + (filter === f ? 'on' : '')} onClick={() => setFilter(f)}>
+              {f === 'all' ? 'All' : STATUS_LABELS[f]}
+            </button>
+          ))}
+        </div>
+      )}
+      {filtered.length === 0 ? (
+        <div className="empty">No listings here yet.<br/>Add one with the button below.</div>
+      ) : filtered.map(l => {
+        const b = data.buildings[l.buildingId];
+        return (
+          <div key={l.id} className="row" onClick={() => { setOpenEditing(false); setOpenId(l.id); }}>
+            <div className="row-top">
+              <div className="row-addr">{l.address || 'Untitled listing'}</div>
+              <div className="row-price">{l.fields.price || '—'}</div>
+            </div>
+            <div className="row-meta">
+              {[l.fields.beds && l.fields.beds + ' BR', l.fields.baths && l.fields.baths + ' BA', l.fields.sqft && l.fields.sqft + ' sf'].filter(Boolean).join(' · ') || (b && b.name) || ''}
+              <span className={'badge b-' + l.status}>{STATUS_LABELS[l.status]}</span>
+            </div>
+          </div>
+        );
+      })}
+      <button className="seed-btn" onClick={() => {
+        const id = 'new_' + uid();
+        const next = { ...data, listings: { ...data.listings, [id]: { id, buildingId: null, address: '', status: 'active', fields: {}, notes: [], customFields: [] } } };
+        persist(next); setOpenEditing(true); setOpenId(id);
+      }}>+ Add listing manually</button>
+      <div className="save-state">{saveLabel}</div>
+    </div>
+  );
+}
+
+function ROField({ label, value }) {
+  return (
+    <div className="fld-ro">
+      <label>{label}</label>
+      <div className={'val' + (value ? '' : ' empty-val')}>{value || 'Not set'}</div>
+    </div>
+  );
+}
+
+function Detail({ listing, building, onBack, data, persist, saveLabel, startEditing, onDelete }) {
+  const [editing, setEditing] = useState(!!startEditing);
+  const [confirmDel, setConfirmDel] = useState(false);
+
+  const updateListing = (patch) => persist({ ...data, listings: { ...data.listings, [listing.id]: { ...listing, ...patch } } });
+  const updateField = (key, val) => updateListing({ fields: { ...listing.fields, [key]: val } });
+  const updateCustom = (idx, patch) => { const cf = [...listing.customFields]; cf[idx] = { ...cf[idx], ...patch }; updateListing({ customFields: cf }); };
+  const updateNote = (idx, text) => { const notes = [...listing.notes]; notes[idx] = { ...notes[idx], text }; updateListing({ notes }); };
+  const updateBuilding = (patch) => { if (!building) return; persist({ ...data, buildings: { ...data.buildings, [building.id]: { ...building, ...patch } } }); };
+  const updateBField = (key, val) => updateBuilding({ fields: { ...building.fields, [key]: val } });
+
+  return (
+    <div>
+      <div className="back">
+        <span onClick={onBack} style={{cursor:'pointer'}}>‹ All listings</span>
+        <div className="edit-bar">
+          <span style={{fontSize:'11px',color:'var(--text3)'}}>{saveLabel}</span>
+          <button className={'edit-toggle' + (editing ? ' editing' : '')} onClick={() => setEditing(!editing)}>
+            {editing ? 'Done' : 'Edit'}
+          </button>
+        </div>
+      </div>
+      {editing && <div className="editing-banner">Editing — changes save automatically</div>}
+
+      <div className="hero">
+        {editing ? (
+          <input className="addr-input" placeholder="Address…" value={listing.address || ''} onChange={e => updateListing({ address: e.target.value })} />
+        ) : (
+          <div className="hero-addr-ro">{listing.address || 'Untitled listing'}</div>
+        )}
+        {building && <div className="hero-bldg"><span className="bldg-tag">{building.name}</span> <span style={{fontSize:'13px',color:'var(--text2)'}}>{building.area || ''}</span></div>}
+        <div className="status-pick">
+          {['active', 'contract', 'sold'].map(s => (
+            <button key={s} disabled={!editing} className={listing.status === s ? 'on-' + s : ''} onClick={() => editing && updateListing({ status: s })}>{STATUS_LABELS[s]}</button>
+          ))}
+        </div>
+      </div>
+
+      <div className="sec">
+        <h3 className="sec-h">Unit details</h3>
+        {editing ? (
+          <>
+            {LISTING_FIELDS.map(f => (
+              <div className="fld" key={f.key}>
+                <label>{f.label}</label>
+                {f.type === 'select' ? (
+                  <select value={listing.fields[f.key] || ''} onChange={e => updateField(f.key, e.target.value)}>
+                    <option value="">—</option>
+                    {f.options.map(o => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                ) : (
+                  <input placeholder={f.placeholder || ''} value={listing.fields[f.key] || ''} onChange={e => updateField(f.key, e.target.value)} />
+                )}
+              </div>
+            ))}
+            {listing.customFields.map((cf, i) => (
+              <div className="fld" key={'cf' + i}>
+                <input style={{ width: '116px', flex: 'none' }} placeholder="Field name" value={cf.label || ''} onChange={e => updateCustom(i, { label: e.target.value })} />
+                <input placeholder="Value" value={cf.value || ''} onChange={e => updateCustom(i, { value: e.target.value })} />
+                <button className="icon-btn" onClick={() => updateListing({ customFields: listing.customFields.filter((_, x) => x !== i) })}>×</button>
+              </div>
+            ))}
+            <button className="add-btn" onClick={() => updateListing({ customFields: [...listing.customFields, { label: '', value: '' }] })}>+ Add field</button>
+          </>
+        ) : (
+          <>
+            {LISTING_FIELDS.map(f => <ROField key={f.key} label={f.label} value={listing.fields[f.key]} />)}
+            {listing.customFields.filter(cf => cf.label || cf.value).map((cf, i) => <ROField key={'cf'+i} label={cf.label || '—'} value={cf.value} />)}
+          </>
+        )}
+      </div>
+
+      <div className="sec">
+        <h3 className="sec-h">Notes <span className="src">always editable</span></h3>
+        {listing.notes.map((n, i) => (
+          <div className="note" key={n.id || i}>
+            <textarea value={n.text || ''} placeholder="Add a note…" onChange={e => updateNote(i, e.target.value)} />
+            <button className="icon-btn" onClick={() => updateListing({ notes: listing.notes.filter((_, x) => x !== i) })}>×</button>
+          </div>
+        ))}
+        <button className="add-btn" onClick={() => updateListing({ notes: [...listing.notes, { id: uid(), text: '' }] })}>+ Add note</button>
+      </div>
+
+      {building ? (
+        <div className="sec">
+          <h3 className="sec-h">Building info <span className="src">shared · {building.name}</span></h3>
+          {editing ? (
+            <>
+              {BUILDING_FIELDS.map(f => (
+                <div className="fld" key={f.key}>
+                  <label>{f.label}</label>
+                  {f.type === 'select' ? (
+                    <select value={building.fields[f.key] || ''} onChange={e => updateBField(f.key, e.target.value)}>
+                      <option value="">—</option>
+                      {f.options.map(o => <option key={o} value={o}>{o}</option>)}
+                    </select>
+                  ) : (
+                    <input placeholder={f.placeholder || ''} value={building.fields[f.key] || ''} onChange={e => updateBField(f.key, e.target.value)} />
+                  )}
+                </div>
+              ))}
+              {(building.customFields || []).map((cf, i) => (
+                <div className="fld" key={'bcf' + i}>
+                  <input style={{ width: '116px', flex: 'none' }} placeholder="Field name" value={cf.label || ''} onChange={e => { const arr = [...building.customFields]; arr[i] = { ...arr[i], label: e.target.value }; updateBuilding({ customFields: arr }); }} />
+                  <input placeholder="Value" value={cf.value || ''} onChange={e => { const arr = [...building.customFields]; arr[i] = { ...arr[i], value: e.target.value }; updateBuilding({ customFields: arr }); }} />
+                  <button className="icon-btn" onClick={() => updateBuilding({ customFields: building.customFields.filter((_, x) => x !== i) })}>×</button>
+                </div>
+              ))}
+              <button className="add-btn" onClick={() => updateBuilding({ customFields: [...(building.customFields || []), { label: '', value: '' }] })}>+ Add building field</button>
+              <h3 className="sec-h" style={{ marginTop: '18px' }}>Amenities</h3>
+              {(building.amenities || []).map((a, i) => (
+                <div className="amenity-row" key={'am' + i}>
+                  <input className="aname" placeholder="Amenity" value={a.name || ''} onChange={e => { const arr = [...building.amenities]; arr[i] = { ...arr[i], name: e.target.value }; updateBuilding({ amenities: arr }); }} />
+                  <input placeholder="Fee (opt.)" value={a.fee || ''} onChange={e => { const arr = [...building.amenities]; arr[i] = { ...arr[i], fee: e.target.value }; updateBuilding({ amenities: arr }); }} />
+                  <button className="icon-btn" onClick={() => updateBuilding({ amenities: building.amenities.filter((_, x) => x !== i) })}>×</button>
+                </div>
+              ))}
+              <button className="add-btn" onClick={() => updateBuilding({ amenities: [...(building.amenities || []), { name: '', fee: '' }] })}>+ Add amenity</button>
+            </>
+          ) : (
+            <>
+              {BUILDING_FIELDS.map(f => <ROField key={f.key} label={f.label} value={building.fields[f.key]} />)}
+              {(building.customFields || []).filter(cf => cf.label || cf.value).map((cf, i) => <ROField key={'bcf'+i} label={cf.label || '—'} value={cf.value} />)}
+              {(building.amenities || []).filter(a => a.name).length > 0 && (
+                <>
+                  <h3 className="sec-h" style={{ marginTop: '18px' }}>Amenities</h3>
+                  {(building.amenities || []).filter(a => a.name).map((a, i) => (
+                    <div className="amenity-ro" key={'amro'+i}><span>{a.name}</span>{a.fee && <span className="afee-ro">{a.fee}</span>}</div>
+                  ))}
+                </>
+              )}
+            </>
+          )}
+        </div>
+      ) : (
+        <div className="sec">
+          <h3 className="sec-h">Building info</h3>
+          {editing ? (
+            <>
+              <p style={{ fontSize: '13px', color: 'var(--text2)', lineHeight: 1.5, margin: '0 0 10px' }}>Not linked to a building yet. Link to share building info across units.</p>
+              <select className="link-select" value="" onChange={e => {
+                if (e.target.value === '__new__') {
+                  const bid = 'bldg_' + uid();
+                  persist({ ...data, buildings: { ...data.buildings, [bid]: { id: bid, name: listing.address || 'New building', area: '', fields: {}, amenities: [], customFields: [] } }, listings: { ...data.listings, [listing.id]: { ...listing, buildingId: bid } } });
+                } else if (e.target.value) { updateListing({ buildingId: e.target.value }); }
+              }}>
+                <option value="">Link to building…</option>
+                {Object.values(data.buildings).map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                <option value="__new__">+ Create new building</option>
+              </select>
+            </>
+          ) : (
+            <p style={{ fontSize: '13px', color: 'var(--text3)', fontStyle: 'italic', margin: 0 }}>Not linked to a building.</p>
+          )}
+        </div>
+      )}
+      {editing && (
+        <div className="sec" style={{ borderBottom: 'none' }}>
+          <button className="delete-listing-btn" onClick={() => setConfirmDel(true)}>Delete this listing</button>
+        </div>
+      )}
+      <div className="save-state">{editing ? 'Tap Done when finished' : 'Read-only — tap Edit to make changes'}</div>
+      {confirmDel && (
+        <ConfirmModal
+          title="Delete listing?"
+          message={'This will permanently remove "' + (listing.address || 'this listing') + '". This cannot be undone.'}
+          onCancel={() => setConfirmDel(false)}
+          onConfirm={() => { setConfirmDel(false); onDelete(); }}
+        />
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
