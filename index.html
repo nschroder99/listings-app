@@ -159,7 +159,6 @@ const STATUS_LABELS = { active: 'Active', contract: 'In contract', sold: 'Sold' 
 
 const LISTING_FIELDS = [
   { key: 'price', label: 'Price', type: 'text', placeholder: '$7,995,000' },
-  { key: 'monthly_type', label: 'Monthly type', type: 'select', options: ['MT (co-op)', 'CC (condo)'] },
   { key: 'monthly_amount', label: 'MT / CC', type: 'text', placeholder: '$5,840 / mo' },
   { key: 'ret', label: 'RET', type: 'text', placeholder: '$3,210 / mo' },
   { key: 'sqft', label: 'Square footage', type: 'text', placeholder: '2,407' },
@@ -194,13 +193,13 @@ const SEED = {
   listings: {
     '31259530': {
       id: '31259530', buildingId: '15-hudson-yards', address: '', unit: 'Apt 71A', status: 'active',
-      fields: { price: '$7,995,000', monthly_type: 'CC (condo)', monthly_amount: '$5,840 / mo', ret: '$3,210 / mo', sqft: '2,407', beds: '3', baths: '3.5', wd: 'Yes (in unit)', ac: 'Central air', purchased: '2019', renovated: '2023 — floors refinished' },
+      fields: { price: '$7,995,000', monthly_amount: '$5,840 / mo', ret: '$3,210 / mo', sqft: '2,407', beds: '3', baths: '3.5', wd: 'Yes (in unit)', ac: 'Central air', purchased: '2019', renovated: '2023 — floors refinished' },
       notes: [ { id: 'n1', text: 'W/D area was previously a powder room — restorable to half bath.' } ],
       customFields: []
     },
     '16193123': {
       id: '16193123', buildingId: '15-hudson-yards', address: '', unit: 'Apt 39D', status: 'active',
-      fields: { price: '$3,295,000', monthly_type: 'CC (condo)', monthly_amount: '$2,910 / mo', ret: '$1,640 / mo', sqft: '1,555', beds: '2', baths: '2.5', wd: 'Yes (in unit)', ac: 'Central air' },
+      fields: { price: '$3,295,000', monthly_amount: '$2,910 / mo', ret: '$1,640 / mo', sqft: '1,555', beds: '2', baths: '2.5', wd: 'Yes (in unit)', ac: 'Central air' },
       notes: [], customFields: []
     }
   }
