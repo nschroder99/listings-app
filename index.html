@@ -173,6 +173,8 @@ const BUILDING_FIELDS = [
   { key: 'flip_tax', label: 'Flip tax / contrib.', type: 'text', placeholder: '2% paid by seller' },
   { key: 'pets', label: 'Pet policy', type: 'text', placeholder: 'Yes, 2 max' },
   { key: 'pied', label: 'Pied-à-terres?', type: 'select', options: ['Allowed', 'Case by case', 'Not allowed'] },
+  { key: 'doorman_num', label: 'Doorman #', type: 'text', placeholder: '(212) 555-0140' },
+  { key: 'super_num', label: 'Super #', type: 'text', placeholder: '(212) 555-0171' },
 ];
 
 const SEED = {
@@ -478,6 +480,10 @@ function Detail({ listing, building, onBack, data, persist, saveLabel, startEdit
               ))}
               <button className="add-btn" onClick={() => updateBuilding({ customFields: [...(building.customFields || []), { label: '', value: '' }] })}>+ Add building field</button>
               <h3 className="sec-h" style={{ marginTop: '18px' }}>Amenities</h3>
+              <div className="fld">
+                <label>Location</label>
+                <input placeholder="e.g. 2nd floor, north tower" value={building.fields.amenities_location || ''} onChange={e => updateBField('amenities_location', e.target.value)} />
+              </div>
               {(building.amenities || []).map((a, i) => (
                 <div className="amenity-row" key={'am' + i}>
                   <input className="aname" placeholder="Amenity" value={a.name || ''} onChange={e => { const arr = [...building.amenities]; arr[i] = { ...arr[i], name: e.target.value }; updateBuilding({ amenities: arr }); }} />
@@ -491,9 +497,10 @@ function Detail({ listing, building, onBack, data, persist, saveLabel, startEdit
             <>
               {BUILDING_FIELDS.map(f => <ROField key={f.key} label={f.label} value={building.fields[f.key]} />)}
               {(building.customFields || []).filter(cf => cf.label || cf.value).map((cf, i) => <ROField key={'bcf'+i} label={cf.label || '—'} value={cf.value} />)}
-              {(building.amenities || []).filter(a => a.name).length > 0 && (
+              {((building.amenities || []).filter(a => a.name).length > 0 || building.fields.amenities_location) && (
                 <>
                   <h3 className="sec-h" style={{ marginTop: '18px' }}>Amenities</h3>
+                  {building.fields.amenities_location && <ROField label="Location" value={building.fields.amenities_location} />}
                   {(building.amenities || []).filter(a => a.name).map((a, i) => (
                     <div className="amenity-ro" key={'amro'+i}><span>{a.name}</span>{a.fee && <span className="afee-ro">{a.fee}</span>}</div>
                   ))}
