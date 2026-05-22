@@ -101,6 +101,8 @@
   .bldg-ctrl-btn.danger { color: var(--danger); border-color: var(--danger); }
   .bldg-ctrl-btn:active { background: var(--bg2); }
   .bldg-ctrl-note { font-size: 12px; color: var(--text3); font-style: italic; }
+  .se-btn { display: block; text-align: center; margin-top: 14px; padding: 11px; border-radius: 8px; background: #185FA5; color: #fff; font-size: 14px; font-weight: 600; text-decoration: none; }
+  .se-btn:active { opacity: 0.85; }
   .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 24px; }
   .modal { background: var(--bg); border-radius: 14px; padding: 22px 20px; max-width: 340px; width: 100%; }
   .modal h4 { margin: 0 0 8px; font-size: 17px; font-weight: 600; }
@@ -442,6 +444,10 @@ function Detail({ listing, building, onBack, data, persist, saveLabel, startEdit
                 )}
               </div>
             ))}
+            <div className="fld">
+              <label>StreetEasy link</label>
+              <input placeholder="https://streeteasy.com/..." value={listing.fields.streeteasy_url || ''} onChange={e => updateField('streeteasy_url', e.target.value)} />
+            </div>
             {listing.customFields.map((cf, i) => (
               <div className="fld" key={'cf' + i}>
                 <input style={{ width: '116px', flex: 'none' }} placeholder="Field name" value={cf.label || ''} onChange={e => updateCustom(i, { label: e.target.value })} />
@@ -455,6 +461,9 @@ function Detail({ listing, building, onBack, data, persist, saveLabel, startEdit
           <>
             {LISTING_FIELDS.map(f => <ROField key={f.key} label={f.label} value={listing.fields[f.key]} />)}
             {listing.customFields.filter(cf => cf.label || cf.value).map((cf, i) => <ROField key={'cf'+i} label={cf.label || '—'} value={cf.value} />)}
+            {listing.fields.streeteasy_url && (
+              <a className="se-btn" href={listing.fields.streeteasy_url} target="_blank" rel="noopener noreferrer">View on StreetEasy ↗</a>
+            )}
           </>
         )}
       </div>
