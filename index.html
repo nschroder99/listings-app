@@ -6,7 +6,6 @@
 <title>Showing Assistant</title>
 <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <style>
   :root {
@@ -120,42 +119,39 @@
 <body>
 <div id="root"><div class="loading">Loading…</div></div>
 
-<script type="text/babel">
-const { useState, useEffect, useRef, useCallback } = React;
-
+<script>
+const {
+  useState,
+  useEffect,
+  useRef,
+  useCallback
+} = React;
 const STORAGE_KEY = 'showing_assistant_v1';
 const SUPABASE_URL = 'https://dlemsbbvsftxdchdsztt.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_OOvTsDO48LGHDm8h9dOv9Q_xienRnIs';
 const ROW_ID = 'main';
-
-const sb = (window.supabase && SUPABASE_URL)
-  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
-  : null;
-
+const sb = window.supabase && SUPABASE_URL ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
 let lastSyncError = null;
-
 function withTimeout(promise, ms, label) {
-  return Promise.race([
-    promise,
-    new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout: ' + label + ' took > ' + ms + 'ms')), ms))
-  ]);
+  return Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout: ' + label + ' took > ' + ms + 'ms')), ms))]);
 }
-
 const store = {
   async get() {
     if (sb) {
       try {
-        const { data, error } = await withTimeout(
-          sb.from('app_state').select('data').eq('id', ROW_ID).single(),
-          8000, 'load'
-        );
+        const {
+          data,
+          error
+        } = await withTimeout(sb.from('app_state').select('data').eq('id', ROW_ID).single(), 8000, 'load');
         if (error) throw error;
         if (data) {
-          try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data.data)); } catch(e){}
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data.data));
+          } catch (e) {}
           lastSyncError = null;
           return JSON.stringify(data.data);
         }
-      } catch(e){
+      } catch (e) {
         lastSyncError = 'Sync (load): ' + (e.message || e);
         console.warn('Supabase load failed, using local cache:', e);
       }
@@ -166,17 +162,22 @@ const store = {
   },
   async set(val) {
     let okLocal = false;
-    try { localStorage.setItem(STORAGE_KEY, val); okLocal = true; } catch(e){}
+    try {
+      localStorage.setItem(STORAGE_KEY, val);
+      okLocal = true;
+    } catch (e) {}
     if (sb) {
       try {
-        const { error } = await withTimeout(
-          sb.from('app_state').update({ data: JSON.parse(val), updated_at: new Date().toISOString() }).eq('id', ROW_ID),
-          8000, 'save'
-        );
+        const {
+          error
+        } = await withTimeout(sb.from('app_state').update({
+          data: JSON.parse(val),
+          updated_at: new Date().toISOString()
+        }).eq('id', ROW_ID), 8000, 'save');
         if (error) throw error;
         lastSyncError = null;
         return true;
-      } catch(e){
+      } catch (e) {
         lastSyncError = 'Sync (save): ' + (e.message || e);
         console.warn('Supabase save failed, saved locally only:', e);
       }
@@ -184,62 +185,193 @@ const store = {
     return okLocal;
   }
 };
-
-const STATUS_LABELS = { active: 'Active', contract: 'In contract', sold: 'Sold' };
-
-const LISTING_FIELDS = [
-  { key: 'price', label: 'Price', type: 'text', placeholder: '$7,995,000' },
-  { key: 'monthly_amount', label: 'MT / CC', type: 'text', placeholder: '$5,840 / mo' },
-  { key: 'ret', label: 'RET', type: 'text', placeholder: '$3,210 / mo' },
-  { key: 'sqft', label: 'Square footage', type: 'text', placeholder: '2,407' },
-  { key: 'beds', label: 'Beds', type: 'text', placeholder: '3' },
-  { key: 'baths', label: 'Baths', type: 'text', placeholder: '3.5' },
-  { key: 'wd', label: 'W/D', type: 'select', options: ['Yes (vented)', 'Yes (not vented)', 'Allowed', 'Not allowed'] },
-  { key: 'ac', label: 'AC', type: 'text', placeholder: 'Central air; window allowed' },
-  { key: 'purchased', label: 'Purchased in', type: 'text', placeholder: '2018' },
-  { key: 'renovated', label: 'Renovated', type: 'text', placeholder: '2023 — kitchen & baths' },
-];
-
-const BUILDING_FIELDS = [
-  { key: 'mgmt_company', label: 'Management co.', type: 'text', placeholder: 'Douglas Elliman PM' },
-  { key: 'year_built', label: 'Year built', type: 'text', placeholder: '2019' },
-  { key: 'num_units', label: '# of units', type: 'text', placeholder: '285' },
-  { key: 'll11', label: 'Local Law 11?', type: 'text', placeholder: 'None current / facade 2024' },
-  { key: 'flip_tax', label: 'Flip tax / contrib.', type: 'text', placeholder: '2% paid by seller' },
-  { key: 'max_financing', label: 'Max financing', type: 'text', placeholder: '80%' },
-  { key: 'pets', label: 'Pet policy', type: 'text', placeholder: 'Yes, 2 max' },
-  { key: 'sublet', label: 'Sublet policy', type: 'text', placeholder: 'After 2 yrs, 2 of every 5' },
-  { key: 'pied', label: 'Pied-à-terres?', type: 'select', options: ['Allowed', 'Case by case', 'Not allowed'] },
-  { key: 'doorman_num', label: 'Doorman #', type: 'text', placeholder: '(212) 555-0140' },
-  { key: 'super_num', label: 'Super #', type: 'text', placeholder: '(212) 555-0171' },
-];
-
+const STATUS_LABELS = {
+  active: 'Active',
+  contract: 'In contract',
+  sold: 'Sold'
+};
+const LISTING_FIELDS = [{
+  key: 'price',
+  label: 'Price',
+  type: 'text',
+  placeholder: '$7,995,000'
+}, {
+  key: 'monthly_amount',
+  label: 'MT / CC',
+  type: 'text',
+  placeholder: '$5,840 / mo'
+}, {
+  key: 'ret',
+  label: 'RET',
+  type: 'text',
+  placeholder: '$3,210 / mo'
+}, {
+  key: 'sqft',
+  label: 'Square footage',
+  type: 'text',
+  placeholder: '2,407'
+}, {
+  key: 'beds',
+  label: 'Beds',
+  type: 'text',
+  placeholder: '3'
+}, {
+  key: 'baths',
+  label: 'Baths',
+  type: 'text',
+  placeholder: '3.5'
+}, {
+  key: 'wd',
+  label: 'W/D',
+  type: 'select',
+  options: ['Yes (vented)', 'Yes (not vented)', 'Allowed', 'Not allowed']
+}, {
+  key: 'ac',
+  label: 'AC',
+  type: 'text',
+  placeholder: 'Central air; window allowed'
+}, {
+  key: 'purchased',
+  label: 'Purchased in',
+  type: 'text',
+  placeholder: '2018'
+}, {
+  key: 'renovated',
+  label: 'Renovated',
+  type: 'text',
+  placeholder: '2023 — kitchen & baths'
+}];
+const BUILDING_FIELDS = [{
+  key: 'mgmt_company',
+  label: 'Management co.',
+  type: 'text',
+  placeholder: 'Douglas Elliman PM'
+}, {
+  key: 'year_built',
+  label: 'Year built',
+  type: 'text',
+  placeholder: '2019'
+}, {
+  key: 'num_units',
+  label: '# of units',
+  type: 'text',
+  placeholder: '285'
+}, {
+  key: 'll11',
+  label: 'Local Law 11?',
+  type: 'text',
+  placeholder: 'None current / facade 2024'
+}, {
+  key: 'flip_tax',
+  label: 'Flip tax / contrib.',
+  type: 'text',
+  placeholder: '2% paid by seller'
+}, {
+  key: 'max_financing',
+  label: 'Max financing',
+  type: 'text',
+  placeholder: '80%'
+}, {
+  key: 'pets',
+  label: 'Pet policy',
+  type: 'text',
+  placeholder: 'Yes, 2 max'
+}, {
+  key: 'sublet',
+  label: 'Sublet policy',
+  type: 'text',
+  placeholder: 'After 2 yrs, 2 of every 5'
+}, {
+  key: 'pied',
+  label: 'Pied-à-terres?',
+  type: 'select',
+  options: ['Allowed', 'Case by case', 'Not allowed']
+}, {
+  key: 'doorman_num',
+  label: 'Doorman #',
+  type: 'text',
+  placeholder: '(212) 555-0140'
+}, {
+  key: 'super_num',
+  label: 'Super #',
+  type: 'text',
+  placeholder: '(212) 555-0171'
+}];
 const SEED = {
   buildings: {
     '15-hudson-yards': {
-      id: '15-hudson-yards', name: '15 Hudson Yards', area: 'West Chelsea',
-      fields: { year_built: '2019', num_units: '285', pets: 'Yes, 2 max', pied: 'Allowed', flip_tax: '2% paid by buyer' },
-      amenities: [ { name: 'Pool & spa', fee: '' }, { name: 'Fitness center', fee: 'Included' }, { name: 'Private dining', fee: '$150/event' } ],
+      id: '15-hudson-yards',
+      name: '15 Hudson Yards',
+      area: 'West Chelsea',
+      fields: {
+        year_built: '2019',
+        num_units: '285',
+        pets: 'Yes, 2 max',
+        pied: 'Allowed',
+        flip_tax: '2% paid by buyer'
+      },
+      amenities: [{
+        name: 'Pool & spa',
+        fee: ''
+      }, {
+        name: 'Fitness center',
+        fee: 'Included'
+      }, {
+        name: 'Private dining',
+        fee: '$150/event'
+      }],
       customFields: []
     }
   },
   listings: {
     '31259530': {
-      id: '31259530', buildingId: '15-hudson-yards', address: '', unit: 'Apt 71A', status: 'active',
-      fields: { price: '$7,995,000', monthly_amount: '$5,840 / mo', ret: '$3,210 / mo', sqft: '2,407', beds: '3', baths: '3.5', wd: 'Yes (in unit)', ac: 'Central air', purchased: '2019', renovated: '2023 — floors refinished' },
-      notes: [ { id: 'n1', text: 'W/D area was previously a powder room — restorable to half bath.' } ],
+      id: '31259530',
+      buildingId: '15-hudson-yards',
+      address: '',
+      unit: 'Apt 71A',
+      status: 'active',
+      fields: {
+        price: '$7,995,000',
+        monthly_amount: '$5,840 / mo',
+        ret: '$3,210 / mo',
+        sqft: '2,407',
+        beds: '3',
+        baths: '3.5',
+        wd: 'Yes (in unit)',
+        ac: 'Central air',
+        purchased: '2019',
+        renovated: '2023 — floors refinished'
+      },
+      notes: [{
+        id: 'n1',
+        text: 'W/D area was previously a powder room — restorable to half bath.'
+      }],
       customFields: []
     },
     '16193123': {
-      id: '16193123', buildingId: '15-hudson-yards', address: '', unit: 'Apt 39D', status: 'active',
-      fields: { price: '$3,295,000', monthly_amount: '$2,910 / mo', ret: '$1,640 / mo', sqft: '1,555', beds: '2', baths: '2.5', wd: 'Yes (in unit)', ac: 'Central air' },
-      notes: [], customFields: []
+      id: '16193123',
+      buildingId: '15-hudson-yards',
+      address: '',
+      unit: 'Apt 39D',
+      status: 'active',
+      fields: {
+        price: '$3,295,000',
+        monthly_amount: '$2,910 / mo',
+        ret: '$1,640 / mo',
+        sqft: '1,555',
+        beds: '2',
+        baths: '2.5',
+        wd: 'Yes (in unit)',
+        ac: 'Central air'
+      },
+      notes: [],
+      customFields: []
     }
   }
 };
-
-function uid() { return Math.random().toString(36).slice(2, 9); }
-
+function uid() {
+  return Math.random().toString(36).slice(2, 9);
+}
 function migrate(data) {
   if (!data.buildings) data.buildings = {};
   if (!data.listings) data.listings = {};
@@ -257,22 +389,28 @@ function migrate(data) {
   });
   return data;
 }
-
-function ConfirmModal({ title, message, onConfirm, onCancel }) {
-  return (
-    <div className="modal-overlay" onClick={onCancel}>
-      <div className="modal" onClick={e => e.stopPropagation()}>
-        <h4>{title}</h4>
-        <p>{message}</p>
-        <div className="modal-btns">
-          <button className="modal-cancel" onClick={onCancel}>Cancel</button>
-          <button className="modal-delete" onClick={onConfirm}>Delete</button>
-        </div>
-      </div>
-    </div>
-  );
+function ConfirmModal({
+  title,
+  message,
+  onConfirm,
+  onCancel
+}) {
+  return /*#__PURE__*/React.createElement("div", {
+    className: "modal-overlay",
+    onClick: onCancel
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "modal",
+    onClick: e => e.stopPropagation()
+  }, /*#__PURE__*/React.createElement("h4", null, title), /*#__PURE__*/React.createElement("p", null, message), /*#__PURE__*/React.createElement("div", {
+    className: "modal-btns"
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "modal-cancel",
+    onClick: onCancel
+  }, "Cancel"), /*#__PURE__*/React.createElement("button", {
+    className: "modal-delete",
+    onClick: onConfirm
+  }, "Delete"))));
 }
-
 function App() {
   const [data, setData] = useState(null);
   const [tab, setTab] = useState('active');
@@ -282,20 +420,26 @@ function App() {
   const [openEditing, setOpenEditing] = useState(false);
   const [saveLabel, setSaveLabel] = useState('');
   const saveTimer = useRef(null);
-
   useEffect(() => {
     (async () => {
       let raw = await store.get();
       let d;
-      if (raw) { try { d = JSON.parse(raw); } catch(e) { d = null; } }
-      if (!d) { d = JSON.parse(JSON.stringify(SEED)); await store.set(JSON.stringify(d)); }
+      if (raw) {
+        try {
+          d = JSON.parse(raw);
+        } catch (e) {
+          d = null;
+        }
+      }
+      if (!d) {
+        d = JSON.parse(JSON.stringify(SEED));
+        await store.set(JSON.stringify(d));
+      }
       setData(migrate(d));
     })();
   }, []);
-
   const dirtyUntil = useRef(0);
-
-  const persist = useCallback((next) => {
+  const persist = useCallback(next => {
     setData(next);
     dirtyUntil.current = Date.now() + 4000;
     setSaveLabel('Saving…');
@@ -307,7 +451,6 @@ function App() {
       setTimeout(() => setSaveLabel(''), 1500);
     }, 500);
   }, []);
-
   useEffect(() => {
     const iv = setInterval(async () => {
       if (Date.now() < dirtyUntil.current) return;
@@ -320,23 +463,39 @@ function App() {
           if (JSON.stringify(prev) === JSON.stringify(fresh)) return prev;
           return migrate(fresh);
         });
-      } catch(e){}
+      } catch (e) {}
     }, 20000);
     return () => clearInterval(iv);
   }, []);
-
-  if (!data) return <div className="loading">Loading…</div>;
-
+  if (!data) return /*#__PURE__*/React.createElement("div", {
+    className: "loading"
+  }, "Loading…");
   if (openId && data.listings[openId]) {
-    return <Detail listing={data.listings[openId]} building={data.buildings[data.listings[openId].buildingId]}
-      onBack={() => { setOpenId(null); setOpenEditing(false); }} data={data} persist={persist} saveLabel={saveLabel} startEditing={openEditing}
-      onDelete={() => {
-        const next = { ...data, listings: { ...data.listings } };
+    return /*#__PURE__*/React.createElement(Detail, {
+      listing: data.listings[openId],
+      building: data.buildings[data.listings[openId].buildingId],
+      onBack: () => {
+        setOpenId(null);
+        setOpenEditing(false);
+      },
+      data: data,
+      persist: persist,
+      saveLabel: saveLabel,
+      startEditing: openEditing,
+      onDelete: () => {
+        const next = {
+          ...data,
+          listings: {
+            ...data.listings
+          }
+        };
         delete next.listings[openId];
-        persist(next); setOpenId(null); setOpenEditing(false);
-      }} />;
+        persist(next);
+        setOpenId(null);
+        setOpenEditing(false);
+      }
+    });
   }
-
   const inTab = Object.values(data.listings).filter(l => tab === 'active' ? l.status !== 'sold' : l.status === 'sold');
   const filtered = inTab.filter(l => {
     if (filter === 'active' && l.status !== 'active') return false;
@@ -344,288 +503,588 @@ function App() {
     if (!search.trim()) return true;
     const q = search.toLowerCase();
     const b = data.buildings[l.buildingId];
-    return displayName(l, b).toLowerCase().includes(q) || (l.unit || '').toLowerCase().includes(q) || (b && (b.name || '').toLowerCase().includes(q));
+    return displayName(l, b).toLowerCase().includes(q) || (l.unit || '').toLowerCase().includes(q) || b && (b.name || '').toLowerCase().includes(q);
   });
   filtered.sort((a, b) => (a.address || '').localeCompare(b.address || ''));
-
   const activeCount = Object.values(data.listings).filter(l => l.status !== 'sold').length;
   const soldCount = Object.values(data.listings).filter(l => l.status === 'sold').length;
-
-  return (
-    <div>
-      {lastSyncError && (
-        <div className="sync-banner" onClick={() => { window.location.reload(); }}>
-          ⚠ Working offline — {lastSyncError}. Tap to retry.
-        </div>
-      )}
-      <div className="topbar">
-        <h2 className="topbar-title">Showing assistant</h2>
-        <div className="seg">
-          <button className={tab === 'active' ? 'on' : ''} onClick={() => setTab('active')}>Current ({activeCount})</button>
-          <button className={tab === 'sold' ? 'on' : ''} onClick={() => setTab('sold')}>Sold ({soldCount})</button>
-        </div>
-      </div>
-      <div className="search">
-        <input placeholder="Search address or building…" value={search} onChange={e => setSearch(e.target.value)} />
-      </div>
-      {tab === 'active' && (
-        <div className="chips">
-          {['all', 'active', 'contract'].map(f => (
-            <button key={f} className={'chip ' + (filter === f ? 'on' : '')} onClick={() => setFilter(f)}>
-              {f === 'all' ? 'All' : STATUS_LABELS[f]}
-            </button>
-          ))}
-        </div>
-      )}
-      {filtered.length === 0 ? (
-        <div className="empty">No listings here yet.<br/>Add one with the button below.</div>
-      ) : filtered.map(l => {
-        const b = data.buildings[l.buildingId];
-        return (
-          <div key={l.id} className="row" onClick={() => { setOpenEditing(false); setOpenId(l.id); }}>
-            <div className="row-top">
-              <div className="row-addr">{displayName(l, b)}</div>
-              <div className="row-price">{l.fields.price || '—'}</div>
-            </div>
-            <div className="row-meta">
-              {[l.fields.beds && l.fields.beds + ' BR', l.fields.baths && l.fields.baths + ' BA', l.fields.sqft && l.fields.sqft + ' sf'].filter(Boolean).join(' · ') || (b && b.name) || ''}
-              <span className={'badge b-' + l.status}>{STATUS_LABELS[l.status]}</span>
-            </div>
-          </div>
-        );
-      })}
-      <button className="seed-btn" onClick={() => {
-        const id = 'new_' + uid();
-        const next = { ...data, listings: { ...data.listings, [id]: { id, buildingId: null, address: '', status: 'active', fields: {}, notes: [], customFields: [] } } };
-        persist(next); setOpenEditing(true); setOpenId(id);
-      }}>+ Add listing manually</button>
-      <div className="save-state">{saveLabel}</div>
-    </div>
-  );
+  return /*#__PURE__*/React.createElement("div", null, lastSyncError && /*#__PURE__*/React.createElement("div", {
+    className: "sync-banner",
+    onClick: () => {
+      window.location.reload();
+    }
+  }, "⚠ Working offline — ", lastSyncError, ". Tap to retry."), /*#__PURE__*/React.createElement("div", {
+    className: "topbar"
+  }, /*#__PURE__*/React.createElement("h2", {
+    className: "topbar-title"
+  }, "Showing assistant"), /*#__PURE__*/React.createElement("div", {
+    className: "seg"
+  }, /*#__PURE__*/React.createElement("button", {
+    className: tab === 'active' ? 'on' : '',
+    onClick: () => setTab('active')
+  }, "Current (", activeCount, ")"), /*#__PURE__*/React.createElement("button", {
+    className: tab === 'sold' ? 'on' : '',
+    onClick: () => setTab('sold')
+  }, "Sold (", soldCount, ")"))), /*#__PURE__*/React.createElement("div", {
+    className: "search"
+  }, /*#__PURE__*/React.createElement("input", {
+    placeholder: "Search address or building…",
+    value: search,
+    onChange: e => setSearch(e.target.value)
+  })), tab === 'active' && /*#__PURE__*/React.createElement("div", {
+    className: "chips"
+  }, ['all', 'active', 'contract'].map(f => /*#__PURE__*/React.createElement("button", {
+    key: f,
+    className: 'chip ' + (filter === f ? 'on' : ''),
+    onClick: () => setFilter(f)
+  }, f === 'all' ? 'All' : STATUS_LABELS[f]))), filtered.length === 0 ? /*#__PURE__*/React.createElement("div", {
+    className: "empty"
+  }, "No listings here yet.", /*#__PURE__*/React.createElement("br", null), "Add one with the button below.") : filtered.map(l => {
+    const b = data.buildings[l.buildingId];
+    return /*#__PURE__*/React.createElement("div", {
+      key: l.id,
+      className: "row",
+      onClick: () => {
+        setOpenEditing(false);
+        setOpenId(l.id);
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "row-top"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "row-addr"
+    }, displayName(l, b)), /*#__PURE__*/React.createElement("div", {
+      className: "row-price"
+    }, l.fields.price || '—')), /*#__PURE__*/React.createElement("div", {
+      className: "row-meta"
+    }, [l.fields.beds && l.fields.beds + ' BR', l.fields.baths && l.fields.baths + ' BA', l.fields.sqft && l.fields.sqft + ' sf'].filter(Boolean).join(' · ') || b && b.name || '', /*#__PURE__*/React.createElement("span", {
+      className: 'badge b-' + l.status
+    }, STATUS_LABELS[l.status])));
+  }), /*#__PURE__*/React.createElement("button", {
+    className: "seed-btn",
+    onClick: () => {
+      const id = 'new_' + uid();
+      const next = {
+        ...data,
+        listings: {
+          ...data.listings,
+          [id]: {
+            id,
+            buildingId: null,
+            address: '',
+            status: 'active',
+            fields: {},
+            notes: [],
+            customFields: []
+          }
+        }
+      };
+      persist(next);
+      setOpenEditing(true);
+      setOpenId(id);
+    }
+  }, "+ Add listing manually"), /*#__PURE__*/React.createElement("div", {
+    className: "save-state"
+  }, saveLabel));
 }
-
 function displayName(listing, building) {
-  const base = building ? (building.name || '') : (listing.address || '');
+  const base = building ? building.name || '' : listing.address || '';
   const unit = listing.unit || '';
   if (base && unit) return base + ', ' + unit;
   return base || unit || 'Untitled listing';
 }
-
-function ROField({ label, value }) {
-  return (
-    <div className="fld-ro">
-      <label>{label}</label>
-      <div className={'val' + (value ? '' : ' empty-val')}>{value || 'Not set'}</div>
-    </div>
-  );
+function ROField({
+  label,
+  value
+}) {
+  return /*#__PURE__*/React.createElement("div", {
+    className: "fld-ro"
+  }, /*#__PURE__*/React.createElement("label", null, label), /*#__PURE__*/React.createElement("div", {
+    className: 'val' + (value ? '' : ' empty-val')
+  }, value || 'Not set'));
 }
-
-function Detail({ listing, building, onBack, data, persist, saveLabel, startEditing, onDelete }) {
+function Detail({
+  listing,
+  building,
+  onBack,
+  data,
+  persist,
+  saveLabel,
+  startEditing,
+  onDelete
+}) {
   const [editing, setEditing] = useState(!!startEditing);
   const [confirmDel, setConfirmDel] = useState(false);
-
-  const updateListing = (patch) => persist({ ...data, listings: { ...data.listings, [listing.id]: { ...listing, ...patch } } });
-  const updateField = (key, val) => updateListing({ fields: { ...listing.fields, [key]: val } });
-  const updateCustom = (idx, patch) => { const cf = [...listing.customFields]; cf[idx] = { ...cf[idx], ...patch }; updateListing({ customFields: cf }); };
-  const updateNote = (idx, text) => { const notes = [...listing.notes]; notes[idx] = { ...notes[idx], text }; updateListing({ notes }); };
-  const updateBuilding = (patch) => { if (!building) return; persist({ ...data, buildings: { ...data.buildings, [building.id]: { ...building, ...patch } } }); };
-  const updateBField = (key, val) => updateBuilding({ fields: { ...building.fields, [key]: val } });
-
-  return (
-    <div>
-      <div className="back">
-        <span onClick={onBack} style={{cursor:'pointer'}}>‹ All listings</span>
-        <div className="edit-bar">
-          <span style={{fontSize:'11px',color:'var(--text3)'}}>{saveLabel}</span>
-          <button className={'edit-toggle' + (editing ? ' editing' : '')} onClick={() => setEditing(!editing)}>
-            {editing ? 'Done' : 'Edit'}
-          </button>
-        </div>
-      </div>
-      {editing && <div className="editing-banner">Editing — changes save automatically</div>}
-
-      <div className="hero">
-        {editing ? (
-          <>
-            <input className="addr-input" placeholder="Building address…" value={building ? (building.name || '') : (listing.address || '')} onChange={e => building ? updateBuilding({ name: e.target.value }) : updateListing({ address: e.target.value })} />
-            <input className="addr-input" style={{ fontSize: '15px', fontWeight: 400, marginTop: '8px' }} placeholder="Unit / Apt #" value={listing.unit || ''} onChange={e => updateListing({ unit: e.target.value })} />
-          </>
-        ) : (
-          <div className="hero-addr-ro">{displayName(listing, building)}</div>
-        )}
-        {building && <div className="hero-bldg"><span className="bldg-tag">{building.name}</span> <span style={{fontSize:'13px',color:'var(--text2)'}}>{building.area || ''}</span></div>}
-        <div className="status-pick">
-          {['active', 'contract', 'sold'].map(s => (
-            <button key={s} disabled={!editing} className={listing.status === s ? 'on-' + s : ''} onClick={() => editing && updateListing({ status: s })}>{STATUS_LABELS[s]}</button>
-          ))}
-        </div>
-      </div>
-
-      <div className="sec">
-        <h3 className="sec-h">Unit details</h3>
-        {editing ? (
-          <>
-            {LISTING_FIELDS.map(f => (
-              <div className="fld" key={f.key}>
-                <label>{f.label}</label>
-                {f.type === 'select' ? (
-                  <select value={listing.fields[f.key] || ''} onChange={e => updateField(f.key, e.target.value)}>
-                    <option value="">—</option>
-                    {f.options.map(o => <option key={o} value={o}>{o}</option>)}
-                  </select>
-                ) : (
-                  <input placeholder={f.placeholder || ''} value={listing.fields[f.key] || ''} onChange={e => updateField(f.key, e.target.value)} />
-                )}
-              </div>
-            ))}
-            <div className="fld">
-              <label>StreetEasy link</label>
-              <input placeholder="https://streeteasy.com/..." value={listing.fields.streeteasy_url || ''} onChange={e => updateField('streeteasy_url', e.target.value)} />
-            </div>
-            {listing.customFields.map((cf, i) => (
-              <div className="fld" key={'cf' + i}>
-                <input style={{ width: '116px', flex: 'none' }} placeholder="Field name" value={cf.label || ''} onChange={e => updateCustom(i, { label: e.target.value })} />
-                <input placeholder="Value" value={cf.value || ''} onChange={e => updateCustom(i, { value: e.target.value })} />
-                <button className="icon-btn" onClick={() => updateListing({ customFields: listing.customFields.filter((_, x) => x !== i) })}>×</button>
-              </div>
-            ))}
-            <button className="add-btn" onClick={() => updateListing({ customFields: [...listing.customFields, { label: '', value: '' }] })}>+ Add field</button>
-          </>
-        ) : (
-          <>
-            {LISTING_FIELDS.map(f => <ROField key={f.key} label={f.label} value={listing.fields[f.key]} />)}
-            {listing.customFields.filter(cf => cf.label || cf.value).map((cf, i) => <ROField key={'cf'+i} label={cf.label || '—'} value={cf.value} />)}
-            {listing.fields.streeteasy_url && (
-              <a className="se-btn" href={listing.fields.streeteasy_url} target="_blank" rel="noopener noreferrer">View on StreetEasy ↗</a>
-            )}
-          </>
-        )}
-      </div>
-
-      <div className="sec">
-        <h3 className="sec-h">Notes <span className="src">always editable</span></h3>
-        {listing.notes.map((n, i) => (
-          <div className="note" key={n.id || i}>
-            <textarea value={n.text || ''} placeholder="Add a note…" onChange={e => updateNote(i, e.target.value)} />
-            <button className="icon-btn" onClick={() => updateListing({ notes: listing.notes.filter((_, x) => x !== i) })}>×</button>
-          </div>
-        ))}
-        <button className="add-btn" onClick={() => updateListing({ notes: [...listing.notes, { id: uid(), text: '' }] })}>+ Add note</button>
-      </div>
-
-      {building ? (
-        <div className="sec">
-          <h3 className="sec-h">Building info <span className="src">shared · {building.name}</span></h3>
-          {editing ? (
-            <>
-              <div className="bldg-controls">
-                <button className="bldg-ctrl-btn" onClick={() => updateListing({ buildingId: null })}>Unlink from building</button>
-                {(() => {
-                  const others = Object.values(data.listings).filter(x => x.buildingId === building.id && x.id !== listing.id);
-                  if (others.length > 0) {
-                    return <span className="bldg-ctrl-note">Used by {others.length} other listing{others.length > 1 ? 's' : ''} — can't delete</span>;
-                  }
-                  return <button className="bldg-ctrl-btn danger" onClick={() => {
-                    if (window.confirm('Delete the building "' + (building.name || 'this building') + '"? This removes its shared info. The listing stays but will be unlinked.')) {
-                      const nextBuildings = { ...data.buildings };
-                      delete nextBuildings[building.id];
-                      persist({ ...data, buildings: nextBuildings, listings: { ...data.listings, [listing.id]: { ...listing, buildingId: null } } });
-                    }
-                  }}>Delete building</button>;
-                })()}
-              </div>
-              {BUILDING_FIELDS.map(f => (
-                <div className="fld" key={f.key}>
-                  <label>{f.label}</label>
-                  {f.type === 'select' ? (
-                    <select value={building.fields[f.key] || ''} onChange={e => updateBField(f.key, e.target.value)}>
-                      <option value="">—</option>
-                      {f.options.map(o => <option key={o} value={o}>{o}</option>)}
-                    </select>
-                  ) : (
-                    <input placeholder={f.placeholder || ''} value={building.fields[f.key] || ''} onChange={e => updateBField(f.key, e.target.value)} />
-                  )}
-                </div>
-              ))}
-              {(building.customFields || []).map((cf, i) => (
-                <div className="fld" key={'bcf' + i}>
-                  <input style={{ width: '116px', flex: 'none' }} placeholder="Field name" value={cf.label || ''} onChange={e => { const arr = [...building.customFields]; arr[i] = { ...arr[i], label: e.target.value }; updateBuilding({ customFields: arr }); }} />
-                  <input placeholder="Value" value={cf.value || ''} onChange={e => { const arr = [...building.customFields]; arr[i] = { ...arr[i], value: e.target.value }; updateBuilding({ customFields: arr }); }} />
-                  <button className="icon-btn" onClick={() => updateBuilding({ customFields: building.customFields.filter((_, x) => x !== i) })}>×</button>
-                </div>
-              ))}
-              <button className="add-btn" onClick={() => updateBuilding({ customFields: [...(building.customFields || []), { label: '', value: '' }] })}>+ Add building field</button>
-              <h3 className="sec-h" style={{ marginTop: '18px' }}>Amenities</h3>
-              <div className="fld">
-                <label>Location</label>
-                <input placeholder="e.g. 2nd floor, north tower" value={building.fields.amenities_location || ''} onChange={e => updateBField('amenities_location', e.target.value)} />
-              </div>
-              {(building.amenities || []).map((a, i) => (
-                <div className="amenity-row" key={'am' + i}>
-                  <input className="aname" placeholder="Amenity" value={a.name || ''} onChange={e => { const arr = [...building.amenities]; arr[i] = { ...arr[i], name: e.target.value }; updateBuilding({ amenities: arr }); }} />
-                  <input placeholder="Fee (opt.)" value={a.fee || ''} onChange={e => { const arr = [...building.amenities]; arr[i] = { ...arr[i], fee: e.target.value }; updateBuilding({ amenities: arr }); }} />
-                  <button className="icon-btn" onClick={() => updateBuilding({ amenities: building.amenities.filter((_, x) => x !== i) })}>×</button>
-                </div>
-              ))}
-              <button className="add-btn" onClick={() => updateBuilding({ amenities: [...(building.amenities || []), { name: '', fee: '' }] })}>+ Add amenity</button>
-            </>
-          ) : (
-            <>
-              {BUILDING_FIELDS.map(f => <ROField key={f.key} label={f.label} value={building.fields[f.key]} />)}
-              {(building.customFields || []).filter(cf => cf.label || cf.value).map((cf, i) => <ROField key={'bcf'+i} label={cf.label || '—'} value={cf.value} />)}
-              {((building.amenities || []).filter(a => a.name).length > 0 || building.fields.amenities_location) && (
-                <>
-                  <h3 className="sec-h" style={{ marginTop: '18px' }}>Amenities</h3>
-                  {building.fields.amenities_location && <ROField label="Location" value={building.fields.amenities_location} />}
-                  {(building.amenities || []).filter(a => a.name).map((a, i) => (
-                    <div className="amenity-ro" key={'amro'+i}><span>{a.name}</span>{a.fee && <span className="afee-ro">{a.fee}</span>}</div>
-                  ))}
-                </>
-              )}
-            </>
-          )}
-        </div>
-      ) : (
-        <div className="sec">
-          <h3 className="sec-h">Building info</h3>
-          {editing ? (
-            <>
-              <p style={{ fontSize: '13px', color: 'var(--text2)', lineHeight: 1.5, margin: '0 0 10px' }}>Not linked to a building yet. Link to share building info across units.</p>
-              <select className="link-select" value="" onChange={e => {
-                if (e.target.value === '__new__') {
-                  const bid = 'bldg_' + uid();
-                  persist({ ...data, buildings: { ...data.buildings, [bid]: { id: bid, name: listing.address || 'New building', area: '', fields: {}, amenities: [], customFields: [] } }, listings: { ...data.listings, [listing.id]: { ...listing, buildingId: bid, address: '' } } });
-                } else if (e.target.value) { updateListing({ buildingId: e.target.value }); }
-              }}>
-                <option value="">Link to building…</option>
-                {Object.values(data.buildings).map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                <option value="__new__">+ Create new building</option>
-              </select>
-            </>
-          ) : (
-            <p style={{ fontSize: '13px', color: 'var(--text3)', fontStyle: 'italic', margin: 0 }}>Not linked to a building.</p>
-          )}
-        </div>
-      )}
-      {editing && (
-        <div className="sec" style={{ borderBottom: 'none' }}>
-          <button className="delete-listing-btn" onClick={() => setConfirmDel(true)}>Delete this listing</button>
-        </div>
-      )}
-      <div className="save-state">{editing ? 'Tap Done when finished' : 'Read-only — tap Edit to make changes'}</div>
-      {confirmDel && (
-        <ConfirmModal
-          title="Delete listing?"
-          message={'This will permanently remove "' + (listing.address || 'this listing') + '". This cannot be undone.'}
-          onCancel={() => setConfirmDel(false)}
-          onConfirm={() => { setConfirmDel(false); onDelete(); }}
-        />
-      )}
-    </div>
-  );
+  const updateListing = patch => persist({
+    ...data,
+    listings: {
+      ...data.listings,
+      [listing.id]: {
+        ...listing,
+        ...patch
+      }
+    }
+  });
+  const updateField = (key, val) => updateListing({
+    fields: {
+      ...listing.fields,
+      [key]: val
+    }
+  });
+  const updateCustom = (idx, patch) => {
+    const cf = [...listing.customFields];
+    cf[idx] = {
+      ...cf[idx],
+      ...patch
+    };
+    updateListing({
+      customFields: cf
+    });
+  };
+  const updateNote = (idx, text) => {
+    const notes = [...listing.notes];
+    notes[idx] = {
+      ...notes[idx],
+      text
+    };
+    updateListing({
+      notes
+    });
+  };
+  const updateBuilding = patch => {
+    if (!building) return;
+    persist({
+      ...data,
+      buildings: {
+        ...data.buildings,
+        [building.id]: {
+          ...building,
+          ...patch
+        }
+      }
+    });
+  };
+  const updateBField = (key, val) => updateBuilding({
+    fields: {
+      ...building.fields,
+      [key]: val
+    }
+  });
+  return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: "back"
+  }, /*#__PURE__*/React.createElement("span", {
+    onClick: onBack,
+    style: {
+      cursor: 'pointer'
+    }
+  }, "‹ All listings"), /*#__PURE__*/React.createElement("div", {
+    className: "edit-bar"
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: '11px',
+      color: 'var(--text3)'
+    }
+  }, saveLabel), /*#__PURE__*/React.createElement("button", {
+    className: 'edit-toggle' + (editing ? ' editing' : ''),
+    onClick: () => setEditing(!editing)
+  }, editing ? 'Done' : 'Edit'))), editing && /*#__PURE__*/React.createElement("div", {
+    className: "editing-banner"
+  }, "Editing — changes save automatically"), /*#__PURE__*/React.createElement("div", {
+    className: "hero"
+  }, editing ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("input", {
+    className: "addr-input",
+    placeholder: "Building address…",
+    value: building ? building.name || '' : listing.address || '',
+    onChange: e => building ? updateBuilding({
+      name: e.target.value
+    }) : updateListing({
+      address: e.target.value
+    })
+  }), /*#__PURE__*/React.createElement("input", {
+    className: "addr-input",
+    style: {
+      fontSize: '15px',
+      fontWeight: 400,
+      marginTop: '8px'
+    },
+    placeholder: "Unit / Apt #",
+    value: listing.unit || '',
+    onChange: e => updateListing({
+      unit: e.target.value
+    })
+  })) : /*#__PURE__*/React.createElement("div", {
+    className: "hero-addr-ro"
+  }, displayName(listing, building)), building && /*#__PURE__*/React.createElement("div", {
+    className: "hero-bldg"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "bldg-tag"
+  }, building.name), " ", /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: '13px',
+      color: 'var(--text2)'
+    }
+  }, building.area || '')), /*#__PURE__*/React.createElement("div", {
+    className: "status-pick"
+  }, ['active', 'contract', 'sold'].map(s => /*#__PURE__*/React.createElement("button", {
+    key: s,
+    disabled: !editing,
+    className: listing.status === s ? 'on-' + s : '',
+    onClick: () => editing && updateListing({
+      status: s
+    })
+  }, STATUS_LABELS[s])))), /*#__PURE__*/React.createElement("div", {
+    className: "sec"
+  }, /*#__PURE__*/React.createElement("h3", {
+    className: "sec-h"
+  }, "Unit details"), editing ? /*#__PURE__*/React.createElement(React.Fragment, null, LISTING_FIELDS.map(f => /*#__PURE__*/React.createElement("div", {
+    className: "fld",
+    key: f.key
+  }, /*#__PURE__*/React.createElement("label", null, f.label), f.type === 'select' ? /*#__PURE__*/React.createElement("select", {
+    value: listing.fields[f.key] || '',
+    onChange: e => updateField(f.key, e.target.value)
+  }, /*#__PURE__*/React.createElement("option", {
+    value: ""
+  }, "—"), f.options.map(o => /*#__PURE__*/React.createElement("option", {
+    key: o,
+    value: o
+  }, o))) : /*#__PURE__*/React.createElement("input", {
+    placeholder: f.placeholder || '',
+    value: listing.fields[f.key] || '',
+    onChange: e => updateField(f.key, e.target.value)
+  }))), /*#__PURE__*/React.createElement("div", {
+    className: "fld"
+  }, /*#__PURE__*/React.createElement("label", null, "StreetEasy link"), /*#__PURE__*/React.createElement("input", {
+    placeholder: "https://streeteasy.com/...",
+    value: listing.fields.streeteasy_url || '',
+    onChange: e => updateField('streeteasy_url', e.target.value)
+  })), listing.customFields.map((cf, i) => /*#__PURE__*/React.createElement("div", {
+    className: "fld",
+    key: 'cf' + i
+  }, /*#__PURE__*/React.createElement("input", {
+    style: {
+      width: '116px',
+      flex: 'none'
+    },
+    placeholder: "Field name",
+    value: cf.label || '',
+    onChange: e => updateCustom(i, {
+      label: e.target.value
+    })
+  }), /*#__PURE__*/React.createElement("input", {
+    placeholder: "Value",
+    value: cf.value || '',
+    onChange: e => updateCustom(i, {
+      value: e.target.value
+    })
+  }), /*#__PURE__*/React.createElement("button", {
+    className: "icon-btn",
+    onClick: () => updateListing({
+      customFields: listing.customFields.filter((_, x) => x !== i)
+    })
+  }, "×"))), /*#__PURE__*/React.createElement("button", {
+    className: "add-btn",
+    onClick: () => updateListing({
+      customFields: [...listing.customFields, {
+        label: '',
+        value: ''
+      }]
+    })
+  }, "+ Add field")) : /*#__PURE__*/React.createElement(React.Fragment, null, LISTING_FIELDS.map(f => /*#__PURE__*/React.createElement(ROField, {
+    key: f.key,
+    label: f.label,
+    value: listing.fields[f.key]
+  })), listing.customFields.filter(cf => cf.label || cf.value).map((cf, i) => /*#__PURE__*/React.createElement(ROField, {
+    key: 'cf' + i,
+    label: cf.label || '—',
+    value: cf.value
+  })), listing.fields.streeteasy_url && /*#__PURE__*/React.createElement("a", {
+    className: "se-btn",
+    href: listing.fields.streeteasy_url,
+    target: "_blank",
+    rel: "noopener noreferrer"
+  }, "View on StreetEasy ↗"))), /*#__PURE__*/React.createElement("div", {
+    className: "sec"
+  }, /*#__PURE__*/React.createElement("h3", {
+    className: "sec-h"
+  }, "Notes ", /*#__PURE__*/React.createElement("span", {
+    className: "src"
+  }, "always editable")), listing.notes.map((n, i) => /*#__PURE__*/React.createElement("div", {
+    className: "note",
+    key: n.id || i
+  }, /*#__PURE__*/React.createElement("textarea", {
+    value: n.text || '',
+    placeholder: "Add a note…",
+    onChange: e => updateNote(i, e.target.value)
+  }), /*#__PURE__*/React.createElement("button", {
+    className: "icon-btn",
+    onClick: () => updateListing({
+      notes: listing.notes.filter((_, x) => x !== i)
+    })
+  }, "×"))), /*#__PURE__*/React.createElement("button", {
+    className: "add-btn",
+    onClick: () => updateListing({
+      notes: [...listing.notes, {
+        id: uid(),
+        text: ''
+      }]
+    })
+  }, "+ Add note")), building ? /*#__PURE__*/React.createElement("div", {
+    className: "sec"
+  }, /*#__PURE__*/React.createElement("h3", {
+    className: "sec-h"
+  }, "Building info ", /*#__PURE__*/React.createElement("span", {
+    className: "src"
+  }, "shared · ", building.name)), editing ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    className: "bldg-controls"
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "bldg-ctrl-btn",
+    onClick: () => updateListing({
+      buildingId: null
+    })
+  }, "Unlink from building"), (() => {
+    const others = Object.values(data.listings).filter(x => x.buildingId === building.id && x.id !== listing.id);
+    if (others.length > 0) {
+      return /*#__PURE__*/React.createElement("span", {
+        className: "bldg-ctrl-note"
+      }, "Used by ", others.length, " other listing", others.length > 1 ? 's' : '', " — can't delete");
+    }
+    return /*#__PURE__*/React.createElement("button", {
+      className: "bldg-ctrl-btn danger",
+      onClick: () => {
+        if (window.confirm('Delete the building "' + (building.name || 'this building') + '"? This removes its shared info. The listing stays but will be unlinked.')) {
+          const nextBuildings = {
+            ...data.buildings
+          };
+          delete nextBuildings[building.id];
+          persist({
+            ...data,
+            buildings: nextBuildings,
+            listings: {
+              ...data.listings,
+              [listing.id]: {
+                ...listing,
+                buildingId: null
+              }
+            }
+          });
+        }
+      }
+    }, "Delete building");
+  })()), BUILDING_FIELDS.map(f => /*#__PURE__*/React.createElement("div", {
+    className: "fld",
+    key: f.key
+  }, /*#__PURE__*/React.createElement("label", null, f.label), f.type === 'select' ? /*#__PURE__*/React.createElement("select", {
+    value: building.fields[f.key] || '',
+    onChange: e => updateBField(f.key, e.target.value)
+  }, /*#__PURE__*/React.createElement("option", {
+    value: ""
+  }, "—"), f.options.map(o => /*#__PURE__*/React.createElement("option", {
+    key: o,
+    value: o
+  }, o))) : /*#__PURE__*/React.createElement("input", {
+    placeholder: f.placeholder || '',
+    value: building.fields[f.key] || '',
+    onChange: e => updateBField(f.key, e.target.value)
+  }))), (building.customFields || []).map((cf, i) => /*#__PURE__*/React.createElement("div", {
+    className: "fld",
+    key: 'bcf' + i
+  }, /*#__PURE__*/React.createElement("input", {
+    style: {
+      width: '116px',
+      flex: 'none'
+    },
+    placeholder: "Field name",
+    value: cf.label || '',
+    onChange: e => {
+      const arr = [...building.customFields];
+      arr[i] = {
+        ...arr[i],
+        label: e.target.value
+      };
+      updateBuilding({
+        customFields: arr
+      });
+    }
+  }), /*#__PURE__*/React.createElement("input", {
+    placeholder: "Value",
+    value: cf.value || '',
+    onChange: e => {
+      const arr = [...building.customFields];
+      arr[i] = {
+        ...arr[i],
+        value: e.target.value
+      };
+      updateBuilding({
+        customFields: arr
+      });
+    }
+  }), /*#__PURE__*/React.createElement("button", {
+    className: "icon-btn",
+    onClick: () => updateBuilding({
+      customFields: building.customFields.filter((_, x) => x !== i)
+    })
+  }, "×"))), /*#__PURE__*/React.createElement("button", {
+    className: "add-btn",
+    onClick: () => updateBuilding({
+      customFields: [...(building.customFields || []), {
+        label: '',
+        value: ''
+      }]
+    })
+  }, "+ Add building field"), /*#__PURE__*/React.createElement("h3", {
+    className: "sec-h",
+    style: {
+      marginTop: '18px'
+    }
+  }, "Amenities"), /*#__PURE__*/React.createElement("div", {
+    className: "fld"
+  }, /*#__PURE__*/React.createElement("label", null, "Location"), /*#__PURE__*/React.createElement("input", {
+    placeholder: "e.g. 2nd floor, north tower",
+    value: building.fields.amenities_location || '',
+    onChange: e => updateBField('amenities_location', e.target.value)
+  })), (building.amenities || []).map((a, i) => /*#__PURE__*/React.createElement("div", {
+    className: "amenity-row",
+    key: 'am' + i
+  }, /*#__PURE__*/React.createElement("input", {
+    className: "aname",
+    placeholder: "Amenity",
+    value: a.name || '',
+    onChange: e => {
+      const arr = [...building.amenities];
+      arr[i] = {
+        ...arr[i],
+        name: e.target.value
+      };
+      updateBuilding({
+        amenities: arr
+      });
+    }
+  }), /*#__PURE__*/React.createElement("input", {
+    placeholder: "Fee (opt.)",
+    value: a.fee || '',
+    onChange: e => {
+      const arr = [...building.amenities];
+      arr[i] = {
+        ...arr[i],
+        fee: e.target.value
+      };
+      updateBuilding({
+        amenities: arr
+      });
+    }
+  }), /*#__PURE__*/React.createElement("button", {
+    className: "icon-btn",
+    onClick: () => updateBuilding({
+      amenities: building.amenities.filter((_, x) => x !== i)
+    })
+  }, "×"))), /*#__PURE__*/React.createElement("button", {
+    className: "add-btn",
+    onClick: () => updateBuilding({
+      amenities: [...(building.amenities || []), {
+        name: '',
+        fee: ''
+      }]
+    })
+  }, "+ Add amenity")) : /*#__PURE__*/React.createElement(React.Fragment, null, BUILDING_FIELDS.map(f => /*#__PURE__*/React.createElement(ROField, {
+    key: f.key,
+    label: f.label,
+    value: building.fields[f.key]
+  })), (building.customFields || []).filter(cf => cf.label || cf.value).map((cf, i) => /*#__PURE__*/React.createElement(ROField, {
+    key: 'bcf' + i,
+    label: cf.label || '—',
+    value: cf.value
+  })), ((building.amenities || []).filter(a => a.name).length > 0 || building.fields.amenities_location) && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("h3", {
+    className: "sec-h",
+    style: {
+      marginTop: '18px'
+    }
+  }, "Amenities"), building.fields.amenities_location && /*#__PURE__*/React.createElement(ROField, {
+    label: "Location",
+    value: building.fields.amenities_location
+  }), (building.amenities || []).filter(a => a.name).map((a, i) => /*#__PURE__*/React.createElement("div", {
+    className: "amenity-ro",
+    key: 'amro' + i
+  }, /*#__PURE__*/React.createElement("span", null, a.name), a.fee && /*#__PURE__*/React.createElement("span", {
+    className: "afee-ro"
+  }, a.fee)))))) : /*#__PURE__*/React.createElement("div", {
+    className: "sec"
+  }, /*#__PURE__*/React.createElement("h3", {
+    className: "sec-h"
+  }, "Building info"), editing ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontSize: '13px',
+      color: 'var(--text2)',
+      lineHeight: 1.5,
+      margin: '0 0 10px'
+    }
+  }, "Not linked to a building yet. Link to share building info across units."), /*#__PURE__*/React.createElement("select", {
+    className: "link-select",
+    value: "",
+    onChange: e => {
+      if (e.target.value === '__new__') {
+        const bid = 'bldg_' + uid();
+        persist({
+          ...data,
+          buildings: {
+            ...data.buildings,
+            [bid]: {
+              id: bid,
+              name: listing.address || 'New building',
+              area: '',
+              fields: {},
+              amenities: [],
+              customFields: []
+            }
+          },
+          listings: {
+            ...data.listings,
+            [listing.id]: {
+              ...listing,
+              buildingId: bid,
+              address: ''
+            }
+          }
+        });
+      } else if (e.target.value) {
+        updateListing({
+          buildingId: e.target.value
+        });
+      }
+    }
+  }, /*#__PURE__*/React.createElement("option", {
+    value: ""
+  }, "Link to building…"), Object.values(data.buildings).map(b => /*#__PURE__*/React.createElement("option", {
+    key: b.id,
+    value: b.id
+  }, b.name)), /*#__PURE__*/React.createElement("option", {
+    value: "__new__"
+  }, "+ Create new building"))) : /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontSize: '13px',
+      color: 'var(--text3)',
+      fontStyle: 'italic',
+      margin: 0
+    }
+  }, "Not linked to a building.")), editing && /*#__PURE__*/React.createElement("div", {
+    className: "sec",
+    style: {
+      borderBottom: 'none'
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "delete-listing-btn",
+    onClick: () => setConfirmDel(true)
+  }, "Delete this listing")), /*#__PURE__*/React.createElement("div", {
+    className: "save-state"
+  }, editing ? 'Tap Done when finished' : 'Read-only — tap Edit to make changes'), confirmDel && /*#__PURE__*/React.createElement(ConfirmModal, {
+    title: "Delete listing?",
+    message: 'This will permanently remove "' + (listing.address || 'this listing') + '". This cannot be undone.',
+    onCancel: () => setConfirmDel(false),
+    onConfirm: () => {
+      setConfirmDel(false);
+      onDelete();
+    }
+  }));
 }
-
-ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+ReactDOM.createRoot(document.getElementById('root')).render(/*#__PURE__*/React.createElement(App, null));
 </script>
 </body>
 </html>
