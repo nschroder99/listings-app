@@ -104,6 +104,20 @@
   .se-btn:active { opacity: 0.85; }
   .sync-banner { background: #FAEEDA; color: #854F0B; padding: 9px 14px; font-size: 12px; text-align: center; border-bottom: 0.5px solid #EF9F27; cursor: pointer; }
   .sync-banner:active { opacity: 0.7; }
+  .sort-row { display: flex; align-items: center; gap: 6px; padding: 0 16px 6px; }
+  .sort-label { font-size: 12px; color: var(--text2); margin-right: 2px; }
+  .sort-chip { font-size: 12px; padding: 5px 11px; border-radius: 20px; border: 0.5px solid var(--border); background: transparent; color: var(--text2); cursor: pointer; }
+  .sort-chip.on { background: var(--text); color: var(--bg); border-color: var(--text); }
+  .bldg-picker { display: flex; flex-direction: column; gap: 6px; }
+  .bldg-picker-input { width: 100%; height: 38px; padding: 0 12px; border: 0.5px solid var(--border2); border-radius: 8px; font-size: 15px; background: var(--bg); color: var(--text); }
+  .bldg-picker-input:focus { outline: none; border-color: var(--info); }
+  .bldg-picker-list { display: flex; flex-direction: column; max-height: 260px; overflow-y: auto; border: 0.5px solid var(--border); border-radius: 8px; }
+  .bldg-picker-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border: none; background: transparent; text-align: left; font-size: 14px; color: var(--text); border-bottom: 0.5px solid var(--border); cursor: pointer; font-family: inherit; }
+  .bldg-picker-item:last-child { border-bottom: none; }
+  .bldg-picker-item:active { background: var(--bg2); }
+  .bldg-picker-area { font-size: 12px; color: var(--text2); }
+  .bldg-picker-empty { padding: 12px; font-size: 13px; color: var(--text3); font-style: italic; text-align: center; border-bottom: 0.5px solid var(--border); }
+  .bldg-picker-create { color: var(--info); font-weight: 500; }
   .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 24px; }
   .modal { background: var(--bg); border-radius: 14px; padding: 22px 20px; max-width: 340px; width: 100%; }
   .modal h4 { margin: 0 0 8px; font-size: 17px; font-weight: 600; }
@@ -372,15 +386,23 @@ const SEED = {
 function uid() {
   return Math.random().toString(36).slice(2, 9);
 }
+function parsePrice(s) {
+  if (!s) return null;
+  const n = parseFloat(String(s).replace(/[^0-9.]/g, ''));
+  return isNaN(n) ? null : n;
+}
 function migrate(data) {
   if (!data.buildings) data.buildings = {};
   if (!data.listings) data.listings = {};
+  let counter = 0;
   Object.values(data.listings).forEach(l => {
     if (!l.fields) l.fields = {};
     if (!l.notes) l.notes = [];
     if (!l.customFields) l.customFields = [];
     if (!l.status) l.status = 'active';
     if (l.unit === undefined) l.unit = '';
+    // Backfill created_at for existing rows — use index so the ordering is stable across runs
+    if (!l.created_at) l.created_at = 1000000000 + counter++;
   });
   Object.values(data.buildings).forEach(b => {
     if (!b.fields) b.fields = {};
@@ -411,11 +433,44 @@ function ConfirmModal({
     onClick: onConfirm
   }, "Delete"))));
 }
+function BuildingPicker({
+  buildings,
+  onPick,
+  onCreate
+}) {
+  const [q, setQ] = useState('');
+  const list = Object.values(buildings);
+  const ql = q.trim().toLowerCase();
+  const filtered = ql ? list.filter(b => (b.name || '').toLowerCase().includes(ql) || (b.area || '').toLowerCase().includes(ql)) : list;
+  filtered.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  return /*#__PURE__*/React.createElement("div", {
+    className: "bldg-picker"
+  }, /*#__PURE__*/React.createElement("input", {
+    className: "bldg-picker-input",
+    placeholder: "Search buildings…",
+    value: q,
+    onChange: e => setQ(e.target.value)
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "bldg-picker-list"
+  }, filtered.length === 0 && q && /*#__PURE__*/React.createElement("div", {
+    className: "bldg-picker-empty"
+  }, "No matches for \"", q, "\""), filtered.map(b => /*#__PURE__*/React.createElement("button", {
+    key: b.id,
+    className: "bldg-picker-item",
+    onClick: () => onPick(b.id)
+  }, /*#__PURE__*/React.createElement("span", null, b.name || 'Untitled'), b.area && /*#__PURE__*/React.createElement("span", {
+    className: "bldg-picker-area"
+  }, b.area))), /*#__PURE__*/React.createElement("button", {
+    className: "bldg-picker-item bldg-picker-create",
+    onClick: () => onCreate(q.trim())
+  }, "+ Create new building", q ? ' "' + q + '"' : '')));
+}
 function App() {
   const [data, setData] = useState(null);
   const [tab, setTab] = useState('active');
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
+  const [sortBy, setSortBy] = useState('price');
   const [openId, setOpenId] = useState(null);
   const [openEditing, setOpenEditing] = useState(false);
   const [saveLabel, setSaveLabel] = useState('');
@@ -505,7 +560,23 @@ function App() {
     const b = data.buildings[l.buildingId];
     return displayName(l, b).toLowerCase().includes(q) || (l.unit || '').toLowerCase().includes(q) || b && (b.name || '').toLowerCase().includes(q);
   });
-  filtered.sort((a, b) => (a.address || '').localeCompare(b.address || ''));
+  filtered.sort((a, b) => {
+    if (sortBy === 'address') {
+      const ab = data.buildings[a.buildingId];
+      const bb = data.buildings[b.buildingId];
+      return displayName(a, ab).localeCompare(displayName(b, bb));
+    }
+    if (sortBy === 'newest') {
+      return (b.created_at || 0) - (a.created_at || 0);
+    }
+    // price (default) — descending; missing prices sort last
+    const pa = parsePrice(a.fields.price);
+    const pb = parsePrice(b.fields.price);
+    if (pa == null && pb == null) return 0;
+    if (pa == null) return 1;
+    if (pb == null) return -1;
+    return pb - pa;
+  });
   const activeCount = Object.values(data.listings).filter(l => l.status !== 'sold').length;
   const soldCount = Object.values(data.listings).filter(l => l.status === 'sold').length;
   return /*#__PURE__*/React.createElement("div", null, lastSyncError && /*#__PURE__*/React.createElement("div", {
@@ -531,7 +602,15 @@ function App() {
     placeholder: "Search address or building…",
     value: search,
     onChange: e => setSearch(e.target.value)
-  })), tab === 'active' && /*#__PURE__*/React.createElement("div", {
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "sort-row"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "sort-label"
+  }, "Sort:"), [['price', 'Price'], ['address', 'Address'], ['newest', 'Newest']].map(([k, label]) => /*#__PURE__*/React.createElement("button", {
+    key: k,
+    className: 'sort-chip ' + (sortBy === k ? 'on' : ''),
+    onClick: () => setSortBy(k)
+  }, label))), tab === 'active' && /*#__PURE__*/React.createElement("div", {
     className: "chips"
   }, ['all', 'active', 'contract'].map(f => /*#__PURE__*/React.createElement("button", {
     key: f,
@@ -574,7 +653,8 @@ function App() {
             status: 'active',
             fields: {},
             notes: [],
-            customFields: []
+            customFields: [],
+            created_at: Date.now()
           }
         }
       };
@@ -1016,48 +1096,38 @@ function Detail({
       lineHeight: 1.5,
       margin: '0 0 10px'
     }
-  }, "Not linked to a building yet. Link to share building info across units."), /*#__PURE__*/React.createElement("select", {
-    className: "link-select",
-    value: "",
-    onChange: e => {
-      if (e.target.value === '__new__') {
-        const bid = 'bldg_' + uid();
-        persist({
-          ...data,
-          buildings: {
-            ...data.buildings,
-            [bid]: {
-              id: bid,
-              name: listing.address || 'New building',
-              area: '',
-              fields: {},
-              amenities: [],
-              customFields: []
-            }
-          },
-          listings: {
-            ...data.listings,
-            [listing.id]: {
-              ...listing,
-              buildingId: bid,
-              address: ''
-            }
+  }, "Not linked to a building yet. Link to share building info across units."), /*#__PURE__*/React.createElement(BuildingPicker, {
+    buildings: data.buildings,
+    onPick: bid => updateListing({
+      buildingId: bid
+    }),
+    onCreate: typedName => {
+      const bid = 'bldg_' + uid();
+      const name = typedName || listing.address || 'New building';
+      persist({
+        ...data,
+        buildings: {
+          ...data.buildings,
+          [bid]: {
+            id: bid,
+            name,
+            area: '',
+            fields: {},
+            amenities: [],
+            customFields: []
           }
-        });
-      } else if (e.target.value) {
-        updateListing({
-          buildingId: e.target.value
-        });
-      }
+        },
+        listings: {
+          ...data.listings,
+          [listing.id]: {
+            ...listing,
+            buildingId: bid,
+            address: ''
+          }
+        }
+      });
     }
-  }, /*#__PURE__*/React.createElement("option", {
-    value: ""
-  }, "Link to building…"), Object.values(data.buildings).map(b => /*#__PURE__*/React.createElement("option", {
-    key: b.id,
-    value: b.id
-  }, b.name)), /*#__PURE__*/React.createElement("option", {
-    value: "__new__"
-  }, "+ Create new building"))) : /*#__PURE__*/React.createElement("p", {
+  })) : /*#__PURE__*/React.createElement("p", {
     style: {
       fontSize: '13px',
       color: 'var(--text3)',
