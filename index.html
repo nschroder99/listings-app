@@ -128,6 +128,8 @@
   .modal-delete { background: var(--danger); color: #fff; border-color: var(--danger); }
   .delete-listing-btn { width: 100%; padding: 12px; border: 0.5px solid var(--danger); border-radius: 8px; background: transparent; color: var(--danger); font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 4px; }
   .delete-listing-btn:active { background: var(--danger); color: #fff; }
+  .contract-grp { font-size: 13px; font-weight: 600; color: var(--text); margin: 16px 0 2px; }
+  .contract-grp:first-child { margin-top: 4px; }
 </style>
 </head>
 <body>
@@ -722,6 +724,62 @@ function ROField({
     className: 'val' + (value ? '' : ' empty-val')
   }, value || 'Not set'));
 }
+const CONTRACT_GROUPS = [{
+  title: "Seller's attorney",
+  prefix: 'seller_atty'
+}, {
+  title: "Buyer's attorney",
+  prefix: 'buyer_atty'
+}, {
+  title: "Buyer's broker",
+  prefix: 'buyer_broker'
+}];
+const CONTRACT_PARTS = [{
+  suffix: 'name',
+  label: 'Name',
+  type: 'text',
+  placeholder: 'Full name'
+}, {
+  suffix: 'cell',
+  label: 'Cell',
+  type: 'tel',
+  placeholder: '(212) 555-0100'
+}, {
+  suffix: 'email',
+  label: 'Email',
+  type: 'email',
+  placeholder: 'name@firm.com'
+}];
+function ContractSection({
+  listing,
+  editing,
+  updateField
+}) {
+  return /*#__PURE__*/React.createElement("div", {
+    className: "sec"
+  }, /*#__PURE__*/React.createElement("h3", {
+    className: "sec-h"
+  }, "In-contract contacts"), CONTRACT_GROUPS.map(g => /*#__PURE__*/React.createElement(React.Fragment, {
+    key: g.prefix
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "contract-grp"
+  }, g.title), CONTRACT_PARTS.map(p => {
+    const key = g.prefix + '_' + p.suffix;
+    return editing ? /*#__PURE__*/React.createElement("div", {
+      className: "fld",
+      key: key
+    }, /*#__PURE__*/React.createElement("label", null, p.label), /*#__PURE__*/React.createElement("input", {
+      type: p.type,
+      placeholder: p.placeholder,
+      value: listing.fields[key] || '',
+      onChange: e => updateField(key, e.target.value)
+    })) : /*#__PURE__*/React.createElement(ROField, {
+      key: key,
+      label: p.label,
+      value: listing.fields[key]
+    });
+  }))));
+}
 function Detail({
   listing,
   building,
@@ -926,7 +984,11 @@ function Detail({
     href: listing.fields.streeteasy_url,
     target: "_blank",
     rel: "noopener noreferrer"
-  }, "View on StreetEasy ↗"))), /*#__PURE__*/React.createElement("div", {
+  }, "View on StreetEasy ↗"))), listing.status === 'contract' && /*#__PURE__*/React.createElement(ContractSection, {
+    listing: listing,
+    editing: editing,
+    updateField: updateField
+  }), /*#__PURE__*/React.createElement("div", {
     className: "sec"
   }, /*#__PURE__*/React.createElement("h3", {
     className: "sec-h"
