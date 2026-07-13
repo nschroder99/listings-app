@@ -733,10 +733,11 @@ const CONTRACT_GROUPS = [{
 }, {
   title: "Buyer's broker",
   prefix: 'buyer_broker'
-}, {
+}];
+const BROKER2 = {
   title: "Buyer's broker 2",
   prefix: 'buyer_broker2'
-}];
+};
 const CONTRACT_PARTS = [{
   suffix: 'name',
   label: 'Name',
@@ -753,16 +754,8 @@ const CONTRACT_PARTS = [{
   type: 'email',
   placeholder: 'name@firm.com'
 }];
-function ContractSection({
-  listing,
-  editing,
-  updateField
-}) {
-  return /*#__PURE__*/React.createElement("div", {
-    className: "sec"
-  }, /*#__PURE__*/React.createElement("h3", {
-    className: "sec-h"
-  }, "In-contract contacts"), CONTRACT_GROUPS.map(g => /*#__PURE__*/React.createElement(React.Fragment, {
+function contractGroup(listing, editing, updateField, g) {
+  return /*#__PURE__*/React.createElement(React.Fragment, {
     key: g.prefix
   }, /*#__PURE__*/React.createElement("div", {
     className: "contract-grp"
@@ -781,7 +774,24 @@ function ContractSection({
       label: p.label,
       value: listing.fields[key]
     });
-  }))));
+  }));
+}
+function ContractSection({
+  listing,
+  editing,
+  updateField
+}) {
+  const hasBroker2 = CONTRACT_PARTS.some(p => listing.fields[BROKER2.prefix + '_' + p.suffix]);
+  const [showBroker2, setShowBroker2] = useState(false);
+  const renderBroker2 = hasBroker2 || showBroker2;
+  return /*#__PURE__*/React.createElement("div", {
+    className: "sec"
+  }, /*#__PURE__*/React.createElement("h3", {
+    className: "sec-h"
+  }, "In-contract contacts"), CONTRACT_GROUPS.map(g => contractGroup(listing, editing, updateField, g)), renderBroker2 && contractGroup(listing, editing, updateField, BROKER2), editing && !renderBroker2 && /*#__PURE__*/React.createElement("button", {
+    className: "add-btn",
+    onClick: () => setShowBroker2(true)
+  }, "+ Add second buyer's broker"));
 }
 function Detail({
   listing,
