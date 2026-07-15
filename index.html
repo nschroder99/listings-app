@@ -44,6 +44,7 @@
   .badge { display: inline-block; font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 600; margin-left: 6px; vertical-align: middle; }
   .b-active { background: #EAF3DE; color: #3B6D11; }
   .b-contract { background: #FAEEDA; color: #854F0B; }
+  .b-contract_out { background: #E6F1FB; color: #185FA5; }
   .b-sold { background: #ECEAE3; color: #444441; }
   .empty { padding: 50px 20px; text-align: center; color: var(--text2); font-size: 14px; line-height: 1.6; }
   .back { padding: 14px 16px; font-size: 15px; color: var(--text2); cursor: pointer; border-bottom: 0.5px solid var(--border); display: flex; align-items: center; }
@@ -51,10 +52,11 @@
   .hero-addr-ro { font-size: 18px; font-weight: 600; line-height: 1.25; }
   .hero-bldg { margin-top: 6px; }
   .status-pick { display: flex; gap: 6px; margin-top: 16px; }
-  .status-pick button { flex: 1; font-size: 13px; padding: 9px; border-radius: 8px; border: 0.5px solid var(--border); background: transparent; cursor: pointer; color: var(--text2); font-weight: 500; }
+  .status-pick button { flex: 1; font-size: 12px; padding: 9px 3px; border-radius: 8px; border: 0.5px solid var(--border); background: transparent; cursor: pointer; color: var(--text2); font-weight: 500; white-space: nowrap; }
   .status-pick button:disabled { cursor: default; }
   .status-pick button.on-active { background: #EAF3DE; color: #3B6D11; border-color: #97C459; }
   .status-pick button.on-contract { background: #FAEEDA; color: #854F0B; border-color: #EF9F27; }
+  .status-pick button.on-contract_out { background: #E6F1FB; color: #185FA5; border-color: #85B7EB; }
   .status-pick button.on-sold { background: #ECEAE3; color: #444441; border-color: #B4B2A9; }
   .sec { padding: 16px; border-bottom: 0.5px solid var(--border); }
   .sec-h { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 12px 0; font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
@@ -130,6 +132,7 @@
   .delete-listing-btn:active { background: var(--danger); color: #fff; }
   .contract-grp { font-size: 13px; font-weight: 600; color: var(--text); margin: 16px 0 2px; }
   .contract-grp:first-child { margin-top: 4px; }
+  .contract-subhead { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; margin: 20px 0 4px; padding-top: 14px; border-top: 0.5px solid var(--border); }
 </style>
 </head>
 <body>
@@ -204,6 +207,7 @@ const store = {
 const STATUS_LABELS = {
   active: 'Active',
   contract: 'In contract',
+  contract_out: 'Contract out',
   sold: 'Sold'
 };
 const LISTING_FIELDS = [{
@@ -597,6 +601,7 @@ function App() {
   const filtered = inTab.filter(l => {
     if (filter === 'active' && l.status !== 'active') return false;
     if (filter === 'contract' && l.status !== 'contract') return false;
+    if (filter === 'contract_out' && l.status !== 'contract_out') return false;
     if (!search.trim()) return true;
     const q = search.toLowerCase();
     const b = data.buildings[l.buildingId];
@@ -654,7 +659,7 @@ function App() {
     onClick: () => setSortBy(k)
   }, label))), tab === 'active' && /*#__PURE__*/React.createElement("div", {
     className: "chips"
-  }, ['all', 'active', 'contract'].map(f => /*#__PURE__*/React.createElement("button", {
+  }, ['all', 'active', 'contract', 'contract_out'].map(f => /*#__PURE__*/React.createElement("button", {
     key: f,
     className: 'chip ' + (filter === f ? 'on' : ''),
     onClick: () => setFilter(f)
@@ -776,7 +781,19 @@ function contractGroup(listing, editing, updateField, g) {
     });
   }));
 }
-function ContractSection({
+const DEAL_FIELDS = [{
+  key: 'contract_price',
+  label: 'Contract price',
+  type: 'text',
+  placeholder: '$1,849,000',
+  format: 'money'
+}, {
+  key: 'financing',
+  label: 'Financing',
+  type: 'select',
+  options: ['Yes', 'No']
+}];
+function DealSection({
   listing,
   editing,
   updateField
@@ -788,7 +805,33 @@ function ContractSection({
     className: "sec"
   }, /*#__PURE__*/React.createElement("h3", {
     className: "sec-h"
-  }, "In-contract contacts"), CONTRACT_GROUPS.map(g => contractGroup(listing, editing, updateField, g)), renderBroker2 && contractGroup(listing, editing, updateField, BROKER2), editing && !renderBroker2 && /*#__PURE__*/React.createElement("button", {
+  }, "Deal terms"), editing ? DEAL_FIELDS.map(f => /*#__PURE__*/React.createElement("div", {
+    className: "fld",
+    key: f.key
+  }, /*#__PURE__*/React.createElement("label", null, f.label), f.type === 'select' ? /*#__PURE__*/React.createElement("select", {
+    value: listing.fields[f.key] || '',
+    onChange: e => updateField(f.key, e.target.value)
+  }, /*#__PURE__*/React.createElement("option", {
+    value: ""
+  }, "—"), f.options.map(o => /*#__PURE__*/React.createElement("option", {
+    key: o,
+    value: o
+  }, o))) : /*#__PURE__*/React.createElement("input", {
+    placeholder: f.placeholder || '',
+    value: listing.fields[f.key] || '',
+    onChange: e => updateField(f.key, e.target.value),
+    onBlur: e => {
+      if (!f.format) return;
+      const formatted = applyFieldFormat(e.target.value, f.format);
+      if (formatted !== e.target.value) updateField(f.key, formatted);
+    }
+  }))) : DEAL_FIELDS.map(f => /*#__PURE__*/React.createElement(ROField, {
+    key: f.key,
+    label: f.label,
+    value: listing.fields[f.key]
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "contract-subhead"
+  }, "Contacts"), CONTRACT_GROUPS.map(g => contractGroup(listing, editing, updateField, g)), renderBroker2 && contractGroup(listing, editing, updateField, BROKER2), editing && !renderBroker2 && /*#__PURE__*/React.createElement("button", {
     className: "add-btn",
     onClick: () => setShowBroker2(true)
   }, "+ Add second buyer's broker"));
@@ -915,14 +958,18 @@ function Detail({
     }
   }, building.area || '')), /*#__PURE__*/React.createElement("div", {
     className: "status-pick"
-  }, ['active', 'contract', 'sold'].map(s => /*#__PURE__*/React.createElement("button", {
+  }, ['active', 'contract', 'contract_out', 'sold'].map(s => /*#__PURE__*/React.createElement("button", {
     key: s,
     disabled: !editing,
     className: listing.status === s ? 'on-' + s : '',
     onClick: () => editing && updateListing({
       status: s
     })
-  }, STATUS_LABELS[s])))), /*#__PURE__*/React.createElement("div", {
+  }, STATUS_LABELS[s])))), (listing.status === 'contract' || listing.status === 'contract_out') && /*#__PURE__*/React.createElement(DealSection, {
+    listing: listing,
+    editing: editing,
+    updateField: updateField
+  }), /*#__PURE__*/React.createElement("div", {
     className: "sec"
   }, /*#__PURE__*/React.createElement("h3", {
     className: "sec-h"
@@ -997,11 +1044,7 @@ function Detail({
     href: listing.fields.streeteasy_url,
     target: "_blank",
     rel: "noopener noreferrer"
-  }, "View on StreetEasy ↗"))), listing.status === 'contract' && /*#__PURE__*/React.createElement(ContractSection, {
-    listing: listing,
-    editing: editing,
-    updateField: updateField
-  }), /*#__PURE__*/React.createElement("div", {
+  }, "View on StreetEasy ↗"))), /*#__PURE__*/React.createElement("div", {
     className: "sec"
   }, /*#__PURE__*/React.createElement("h3", {
     className: "sec-h"
