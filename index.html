@@ -794,8 +794,11 @@ const DEAL_FIELDS = [{
   placeholder: 'e.g. 85%, non-contingent'
 }];
 // All field keys that make up the "Deal terms" section — cleared when a
-// listing reverts to Active from a contract status.
+// listing reverts to Active from a deal status.
 const DEAL_FIELD_KEYS = [...DEAL_FIELDS.map(f => f.key), ...[...CONTRACT_GROUPS, BROKER2].flatMap(g => CONTRACT_PARTS.map(p => g.prefix + '_' + p.suffix))];
+// Statuses that carry deal info and show the "Deal terms" section. Sold
+// keeps its contract info (from when it was in contract) rather than losing it.
+const DEAL_STATUSES = ['contract', 'contract_out', 'sold'];
 function DealSection({
   listing,
   editing,
@@ -968,9 +971,9 @@ function Detail({
     className: listing.status === s ? 'on-' + s : '',
     onClick: () => {
       if (!editing) return;
-      const leavingContract = listing.status === 'contract' || listing.status === 'contract_out';
+      const leavingDeal = DEAL_STATUSES.includes(listing.status);
       const hasDealInfo = DEAL_FIELD_KEYS.some(k => listing.fields[k]);
-      if (s === 'active' && leavingContract && hasDealInfo) {
+      if (s === 'active' && leavingDeal && hasDealInfo) {
         setConfirmClear(true);
         return;
       }
@@ -978,7 +981,7 @@ function Detail({
         status: s
       });
     }
-  }, STATUS_LABELS[s])))), (listing.status === 'contract' || listing.status === 'contract_out') && /*#__PURE__*/React.createElement(DealSection, {
+  }, STATUS_LABELS[s])))), DEAL_STATUSES.includes(listing.status) && /*#__PURE__*/React.createElement(DealSection, {
     listing: listing,
     editing: editing,
     updateField: updateField
