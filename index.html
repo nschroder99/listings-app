@@ -793,6 +793,9 @@ const DEAL_FIELDS = [{
   type: 'text',
   placeholder: 'e.g. 85%, non-contingent'
 }];
+// All field keys that make up the "Deal terms" section — cleared when a
+// listing reverts to Active from a contract status.
+const DEAL_FIELD_KEYS = [...DEAL_FIELDS.map(f => f.key), ...[...CONTRACT_GROUPS, BROKER2].flatMap(g => CONTRACT_PARTS.map(p => g.prefix + '_' + p.suffix))];
 function DealSection({
   listing,
   editing,
@@ -848,6 +851,7 @@ function Detail({
 }) {
   const [editing, setEditing] = useState(!!startEditing);
   const [confirmDel, setConfirmDel] = useState(false);
+  const [confirmClear, setConfirmClear] = useState(false);
   const updateListing = patch => persist({
     ...data,
     listings: {
@@ -962,9 +966,18 @@ function Detail({
     key: s,
     disabled: !editing,
     className: listing.status === s ? 'on-' + s : '',
-    onClick: () => editing && updateListing({
-      status: s
-    })
+    onClick: () => {
+      if (!editing) return;
+      const leavingContract = listing.status === 'contract' || listing.status === 'contract_out';
+      const hasDealInfo = DEAL_FIELD_KEYS.some(k => listing.fields[k]);
+      if (s === 'active' && leavingContract && hasDealInfo) {
+        setConfirmClear(true);
+        return;
+      }
+      updateListing({
+        status: s
+      });
+    }
   }, STATUS_LABELS[s])))), (listing.status === 'contract' || listing.status === 'contract_out') && /*#__PURE__*/React.createElement(DealSection, {
     listing: listing,
     editing: editing,
@@ -1314,6 +1327,21 @@ function Detail({
     onConfirm: () => {
       setConfirmDel(false);
       onDelete();
+    }
+  }), confirmClear && /*#__PURE__*/React.createElement(ConfirmModal, {
+    title: "Delete contract info?",
+    message: "Switching to Active will permanently delete this listing's Deal terms — contract price, financing, and all attorney/broker contacts. This cannot be undone.",
+    onCancel: () => setConfirmClear(false),
+    onConfirm: () => {
+      setConfirmClear(false);
+      const nextFields = {
+        ...listing.fields
+      };
+      DEAL_FIELD_KEYS.forEach(k => delete nextFields[k]);
+      updateListing({
+        status: 'active',
+        fields: nextFields
+      });
     }
   }));
 }
