@@ -599,9 +599,9 @@ function App() {
   }
   const inTab = Object.values(data.listings).filter(l => tab === 'active' ? l.status !== 'sold' : l.status === 'sold');
   const filtered = inTab.filter(l => {
-    if (filter === 'active' && l.status !== 'active') return false;
-    if (filter === 'contract' && l.status !== 'contract') return false;
-    if (filter === 'contract_out' && l.status !== 'contract_out') return false;
+    // Status chips render only on the Current tab, so a filter left set there
+    // must not silently hide everything on Sold.
+    if (tab === 'active' && filter !== 'all' && l.status !== filter) return false;
     if (!search.trim()) return true;
     const q = search.toLowerCase();
     const b = data.buildings[l.buildingId];
