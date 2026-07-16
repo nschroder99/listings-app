@@ -46,18 +46,20 @@
   .b-contract { background: #FAEEDA; color: #854F0B; }
   .b-contract_out { background: #E6F1FB; color: #185FA5; }
   .b-sold { background: #ECEAE3; color: #444441; }
+  .b-archived { background: #ECE9F5; color: #574B8A; }
   .empty { padding: 50px 20px; text-align: center; color: var(--text2); font-size: 14px; line-height: 1.6; }
   .back { padding: 14px 16px; font-size: 15px; color: var(--text2); cursor: pointer; border-bottom: 0.5px solid var(--border); display: flex; align-items: center; }
   .hero { padding: 18px 16px 16px; border-bottom: 0.5px solid var(--border); }
   .hero-addr-ro { font-size: 18px; font-weight: 600; line-height: 1.25; }
   .hero-bldg { margin-top: 6px; }
-  .status-pick { display: flex; gap: 6px; margin-top: 16px; }
-  .status-pick button { flex: 1; font-size: 12px; padding: 9px 3px; border-radius: 8px; border: 0.5px solid var(--border); background: transparent; cursor: pointer; color: var(--text2); font-weight: 500; white-space: nowrap; }
+  .status-pick { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 16px; }
+  .status-pick button { flex: 1 1 auto; min-width: 92px; font-size: 12px; padding: 9px 3px; border-radius: 8px; border: 0.5px solid var(--border); background: transparent; cursor: pointer; color: var(--text2); font-weight: 500; white-space: nowrap; }
   .status-pick button:disabled { cursor: default; }
   .status-pick button.on-active { background: #EAF3DE; color: #3B6D11; border-color: #97C459; }
   .status-pick button.on-contract { background: #FAEEDA; color: #854F0B; border-color: #EF9F27; }
   .status-pick button.on-contract_out { background: #E6F1FB; color: #185FA5; border-color: #85B7EB; }
   .status-pick button.on-sold { background: #ECEAE3; color: #444441; border-color: #B4B2A9; }
+  .status-pick button.on-archived { background: #ECE9F5; color: #574B8A; border-color: #A79BD1; }
   .sec { padding: 16px; border-bottom: 0.5px solid var(--border); }
   .sec-h { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 12px 0; font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
   .sec-h .src { text-transform: none; letter-spacing: 0; font-weight: 400; color: var(--text3); font-size: 11px; }
@@ -208,8 +210,12 @@ const STATUS_LABELS = {
   active: 'Active',
   contract: 'In contract',
   contract_out: 'Contract out',
-  sold: 'Sold'
+  sold: 'Sold',
+  archived: 'Archived'
 };
+// Statuses that live in the "Closed" tab instead of Current. Archived covers
+// listings that ended without a sale (lost, withdrawn, board turndown).
+const CLOSED_STATUSES = ['sold', 'archived'];
 const LISTING_FIELDS = [{
   key: 'price',
   label: 'Price',
@@ -515,6 +521,7 @@ function App() {
   const [data, setData] = useState(null);
   const [tab, setTab] = useState('active');
   const [filter, setFilter] = useState('all');
+  const [closedFilter, setClosedFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState('price');
   const [openId, setOpenId] = useState(null);
@@ -597,11 +604,12 @@ function App() {
       }
     });
   }
-  const inTab = Object.values(data.listings).filter(l => tab === 'active' ? l.status !== 'sold' : l.status === 'sold');
+  const inTab = Object.values(data.listings).filter(l => tab === 'active' ? !CLOSED_STATUSES.includes(l.status) : CLOSED_STATUSES.includes(l.status));
   const filtered = inTab.filter(l => {
-    // Status chips render only on the Current tab, so a filter left set there
-    // must not silently hide everything on Sold.
-    if (tab === 'active' && filter !== 'all' && l.status !== filter) return false;
+    // Each tab keeps its own status filter, so one tab's filter can never
+    // hide the other tab's listings.
+    const tabFilter = tab === 'active' ? filter : closedFilter;
+    if (tabFilter !== 'all' && l.status !== tabFilter) return false;
     if (!search.trim()) return true;
     const q = search.toLowerCase();
     const b = data.buildings[l.buildingId];
@@ -624,8 +632,8 @@ function App() {
     if (pb == null) return -1;
     return pb - pa;
   });
-  const activeCount = Object.values(data.listings).filter(l => l.status !== 'sold').length;
-  const soldCount = Object.values(data.listings).filter(l => l.status === 'sold').length;
+  const activeCount = Object.values(data.listings).filter(l => !CLOSED_STATUSES.includes(l.status)).length;
+  const closedCount = Object.values(data.listings).filter(l => CLOSED_STATUSES.includes(l.status)).length;
   return /*#__PURE__*/React.createElement("div", null, lastSyncError && /*#__PURE__*/React.createElement("div", {
     className: "sync-banner",
     onClick: () => {
@@ -641,9 +649,9 @@ function App() {
     className: tab === 'active' ? 'on' : '',
     onClick: () => setTab('active')
   }, "Current (", activeCount, ")"), /*#__PURE__*/React.createElement("button", {
-    className: tab === 'sold' ? 'on' : '',
-    onClick: () => setTab('sold')
-  }, "Sold (", soldCount, ")"))), /*#__PURE__*/React.createElement("div", {
+    className: tab === 'closed' ? 'on' : '',
+    onClick: () => setTab('closed')
+  }, "Closed (", closedCount, ")"))), /*#__PURE__*/React.createElement("div", {
     className: "search"
   }, /*#__PURE__*/React.createElement("input", {
     placeholder: "Search address or building…",
@@ -657,12 +665,12 @@ function App() {
     key: k,
     className: 'sort-chip ' + (sortBy === k ? 'on' : ''),
     onClick: () => setSortBy(k)
-  }, label))), tab === 'active' && /*#__PURE__*/React.createElement("div", {
+  }, label))), /*#__PURE__*/React.createElement("div", {
     className: "chips"
-  }, ['all', 'active', 'contract', 'contract_out'].map(f => /*#__PURE__*/React.createElement("button", {
+  }, (tab === 'active' ? ['all', 'active', 'contract', 'contract_out'] : ['all', 'sold', 'archived']).map(f => /*#__PURE__*/React.createElement("button", {
     key: f,
-    className: 'chip ' + (filter === f ? 'on' : ''),
-    onClick: () => setFilter(f)
+    className: 'chip ' + ((tab === 'active' ? filter : closedFilter) === f ? 'on' : ''),
+    onClick: () => tab === 'active' ? setFilter(f) : setClosedFilter(f)
   }, f === 'all' ? 'All' : STATUS_LABELS[f]))), filtered.length === 0 ? /*#__PURE__*/React.createElement("div", {
     className: "empty"
   }, "No listings here yet.", /*#__PURE__*/React.createElement("br", null), "Add one with the button below.") : filtered.map(l => {
@@ -796,9 +804,10 @@ const DEAL_FIELDS = [{
 // All field keys that make up the "Deal terms" section — cleared when a
 // listing reverts to Active from a deal status.
 const DEAL_FIELD_KEYS = [...DEAL_FIELDS.map(f => f.key), ...[...CONTRACT_GROUPS, BROKER2].flatMap(g => CONTRACT_PARTS.map(p => g.prefix + '_' + p.suffix))];
-// Statuses that carry deal info and show the "Deal terms" section. Sold
-// keeps its contract info (from when it was in contract) rather than losing it.
-const DEAL_STATUSES = ['contract', 'contract_out', 'sold'];
+// Statuses that carry deal info and show the "Deal terms" section. Sold and
+// archived keep the contract info from when the listing was in contract
+// rather than losing it.
+const DEAL_STATUSES = ['contract', 'contract_out', 'sold', 'archived'];
 function DealSection({
   listing,
   editing,
@@ -965,7 +974,7 @@ function Detail({
     }
   }, building.area || '')), /*#__PURE__*/React.createElement("div", {
     className: "status-pick"
-  }, ['active', 'contract', 'contract_out', 'sold'].map(s => /*#__PURE__*/React.createElement("button", {
+  }, ['active', 'contract', 'contract_out', 'sold', 'archived'].map(s => /*#__PURE__*/React.createElement("button", {
     key: s,
     disabled: !editing,
     className: listing.status === s ? 'on-' + s : '',
