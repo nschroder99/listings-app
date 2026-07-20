@@ -146,6 +146,20 @@
   .contact-acc-chev.open { transform: rotate(180deg); }
   .contact-acc-body { padding: 0 0 8px 0; }
   .contact-acc-body .fld-ro { border-bottom: none; padding: 4px 0; }
+  .ref-sec { padding: 8px 16px 20px; border-top: 0.5px solid var(--border); }
+  .ref-sec-h { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.05em; margin: 12px 0 2px; font-weight: 600; }
+  .ref-acc { border-bottom: 0.5px solid var(--border); }
+  .ref-acc:last-child { border-bottom: none; }
+  .ref-acc-head { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 12px 0; background: transparent; border: none; cursor: pointer; font-family: inherit; font-size: 15px; font-weight: 500; color: var(--text); text-align: left; }
+  .ref-acc-head:active { opacity: 0.6; }
+  .ref-acc-chev { color: var(--text3); font-size: 13px; line-height: 1; flex-shrink: 0; transition: transform 0.15s; }
+  .ref-acc-chev.open { transform: rotate(180deg); }
+  .ref-acc-body { padding: 0 0 12px; }
+  .ref-row { display: flex; justify-content: space-between; gap: 12px; padding: 5px 0; font-size: 14px; }
+  .ref-band { color: var(--text2); }
+  .ref-rate { color: var(--text); font-weight: 600; white-space: nowrap; }
+  .ref-note { font-size: 12px; color: var(--text3); line-height: 1.45; margin-top: 8px; }
+  .ref-disclaimer { font-size: 11px; color: var(--text3); line-height: 1.45; margin-top: 14px; font-style: italic; }
 </style>
 </head>
 <body>
@@ -734,9 +748,63 @@ function App() {
       setOpenEditing(true);
       setOpenId(id);
     }
-  }, "+ Add listing manually"), /*#__PURE__*/React.createElement("div", {
+  }, "+ Add listing manually"), /*#__PURE__*/React.createElement(TaxReference, null), /*#__PURE__*/React.createElement("div", {
     className: "save-state"
   }, saveLabel));
+}
+const TAX_REFERENCE = [{
+  title: 'NYS transfer tax',
+  rows: [['Residential, under $3M', '0.40%'], ['Residential, $3M and up', '0.65%']],
+  note: 'Seller pays. Base 0.4% ($2 per $500 of price); residential sales of $3M+ add 0.25%.'
+}, {
+  title: 'NYC transfer tax (RPTT)',
+  rows: [['Residential — $500K or less', '1.0%'], ['Residential — over $500K', '1.425%'], ['Commercial / 4+ units — $500K or less', '1.425%'], ['Commercial / 4+ units — over $500K', '2.625%']],
+  note: 'Seller pays, on the full sale price.'
+}, {
+  title: 'Mansion tax',
+  rows: [['$1M – $2M', '1.00%'], ['$2M – $3M', '1.25%'], ['$3M – $5M', '1.50%'], ['$5M – $10M', '2.25%'], ['$10M – $15M', '3.25%'], ['$15M – $20M', '3.50%'], ['$20M – $25M', '3.75%'], ['$25M and up', '3.90%']],
+  note: 'Buyer pays on residential purchases of $1M+. The bracket rate applies to the entire price; each band runs up to the next threshold.'
+}];
+function RefAccordion({
+  title,
+  rows,
+  note
+}) {
+  const [open, setOpen] = useState(false);
+  return /*#__PURE__*/React.createElement("div", {
+    className: "ref-acc"
+  }, /*#__PURE__*/React.createElement("button", {
+    type: "button",
+    className: "ref-acc-head",
+    onClick: () => setOpen(o => !o)
+  }, /*#__PURE__*/React.createElement("span", null, title), /*#__PURE__*/React.createElement("span", {
+    className: "ref-acc-chev" + (open ? ' open' : '')
+  }, "⌄")), open && /*#__PURE__*/React.createElement("div", {
+    className: "ref-acc-body"
+  }, rows.map((r, i) => /*#__PURE__*/React.createElement("div", {
+    className: "ref-row",
+    key: i
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "ref-band"
+  }, r[0]), /*#__PURE__*/React.createElement("span", {
+    className: "ref-rate"
+  }, r[1]))), note && /*#__PURE__*/React.createElement("div", {
+    className: "ref-note"
+  }, note)));
+}
+function TaxReference() {
+  return /*#__PURE__*/React.createElement("div", {
+    className: "ref-sec"
+  }, /*#__PURE__*/React.createElement("h3", {
+    className: "ref-sec-h"
+  }, "Transfer & mansion tax reference"), TAX_REFERENCE.map((t, i) => /*#__PURE__*/React.createElement(RefAccordion, {
+    key: i,
+    title: t.title,
+    rows: t.rows,
+    note: t.note
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "ref-disclaimer"
+  }, "Estimates for quick reference — confirm exact figures with the attorney or title company."));
 }
 function displayName(listing, building) {
   const base = building ? building.name || '' : listing.address || '';
