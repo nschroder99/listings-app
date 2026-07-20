@@ -755,15 +755,15 @@ function App() {
 const TAX_REFERENCE = [{
   title: 'NYS transfer tax',
   rows: [['Residential, under $3M', '0.40%'], ['Residential, $3M and up', '0.65%']],
-  note: 'Seller pays. Base 0.4% ($2 per $500 of price); residential sales of $3M+ add 0.25%.'
+  note: 'Seller pays.'
 }, {
   title: 'NYC transfer tax (RPTT)',
   rows: [['Residential — $500K or less', '1.0%'], ['Residential — over $500K', '1.425%'], ['Commercial / 4+ units — $500K or less', '1.425%'], ['Commercial / 4+ units — over $500K', '2.625%']],
-  note: 'Seller pays, on the full sale price.'
+  note: 'Seller pays.'
 }, {
   title: 'Mansion tax',
-  rows: [['$1M – $2M', '1.00%'], ['$2M – $3M', '1.25%'], ['$3M – $5M', '1.50%'], ['$5M – $10M', '2.25%'], ['$10M – $15M', '3.25%'], ['$15M – $20M', '3.50%'], ['$20M – $25M', '3.75%'], ['$25M and up', '3.90%']],
-  note: 'Buyer pays on residential purchases of $1M+. The bracket rate applies to the entire price; each band runs up to the next threshold.'
+  rows: [['$1,000,000 – $1,999,999', '1.00%'], ['$2,000,000 – $2,999,999', '1.25%'], ['$3,000,000 – $4,999,999', '1.50%'], ['$5,000,000 – $9,999,999', '2.25%'], ['$10,000,000 – $14,999,999', '3.25%'], ['$15,000,000 – $19,999,999', '3.50%'], ['$20,000,000 – $24,999,999', '3.75%'], ['$25,000,000 and up', '3.90%']],
+  note: 'Buyer pays on residential purchases of $1M+. The bracket rate applies to the entire price.'
 }];
 function RefAccordion({
   title,
