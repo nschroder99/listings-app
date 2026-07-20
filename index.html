@@ -758,7 +758,7 @@ const TAX_REFERENCE = [{
   note: 'Seller pays.'
 }, {
   title: 'NYC transfer tax (RPTT)',
-  rows: [['Residential — $500K or less', '1.0%'], ['Residential — over $500K', '1.425%'], ['Commercial / 4+ units — $500K or less', '1.425%'], ['Commercial / 4+ units — over $500K', '2.625%']],
+  rows: [['$500K or less', '1.0%'], ['Over $500K', '1.425%']],
   note: 'Seller pays.'
 }, {
   title: 'Mansion tax',
@@ -802,9 +802,7 @@ function TaxReference() {
     title: t.title,
     rows: t.rows,
     note: t.note
-  })), /*#__PURE__*/React.createElement("div", {
-    className: "ref-disclaimer"
-  }, "Estimates for quick reference — confirm exact figures with the attorney or title company."));
+  })));
 }
 function displayName(listing, building) {
   const base = building ? building.name || '' : listing.address || '';
