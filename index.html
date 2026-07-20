@@ -754,7 +754,7 @@ function App() {
 }
 const TAX_REFERENCE = [{
   title: 'NYS transfer tax',
-  rows: [['Residential, under $3M', '0.40%'], ['Residential, $3M and up', '0.65%']],
+  rows: [['Under $3M', '0.40%'], ['$3M and up', '0.65%']],
   note: 'Seller pays.'
 }, {
   title: 'NYC transfer tax (RPTT)',
@@ -764,6 +764,10 @@ const TAX_REFERENCE = [{
   title: 'Mansion tax',
   rows: [['$1,000,000 – $1,999,999', '1.00%'], ['$2,000,000 – $2,999,999', '1.25%'], ['$3,000,000 – $4,999,999', '1.50%'], ['$5,000,000 – $9,999,999', '2.25%'], ['$10,000,000 – $14,999,999', '3.25%'], ['$15,000,000 – $19,999,999', '3.50%'], ['$20,000,000 – $24,999,999', '3.75%'], ['$25,000,000 and up', '3.90%']],
   note: 'Buyer pays on residential purchases of $1M+. The bracket rate applies to the entire price.'
+}, {
+  title: 'Pied-à-terre tax',
+  rows: [['Condo / co-op, $1M – $3M', '4%'], ['Condo / co-op, $3M – $5M', '5.25%'], ['Condo / co-op, over $5M', '6.5%'], ['1–3 family, $5M – $15M', '0.8%'], ['1–3 family, $15M – $25M', '1.05%'], ['1–3 family, over $25M', '1.3%']],
+  note: 'Annual surcharge on NYC homes that aren’t the owner’s primary residence. Condo/co-op rates apply to the city’s assessed value, 1–3 family to DOF market value — not the sale price. Effective July 1, 2026 (Phase 1 rates through June 2028); sunsets June 2031.'
 }];
 function RefAccordion({
   title,
@@ -797,7 +801,7 @@ function TaxReference() {
     className: "ref-sec"
   }, /*#__PURE__*/React.createElement("h3", {
     className: "ref-sec-h"
-  }, "Transfer & mansion tax reference"), TAX_REFERENCE.map((t, i) => /*#__PURE__*/React.createElement(RefAccordion, {
+  }, "Tax reference"), TAX_REFERENCE.map((t, i) => /*#__PURE__*/React.createElement(RefAccordion, {
     key: i,
     title: t.title,
     rows: t.rows,
