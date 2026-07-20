@@ -135,6 +135,17 @@
   .contract-grp { font-size: 13px; font-weight: 600; color: var(--text); margin: 16px 0 2px; }
   .contract-grp:first-child { margin-top: 4px; }
   .contract-subhead { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; margin: 20px 0 4px; padding-top: 14px; border-top: 0.5px solid var(--border); }
+  .contact-acc { border-bottom: 0.5px solid var(--border); }
+  .contact-acc:last-child { border-bottom: none; }
+  .contact-acc-head { display: flex; align-items: baseline; gap: 10px; width: 100%; padding: 10px 0; background: transparent; border: none; cursor: pointer; text-align: left; font-family: inherit; }
+  .contact-acc-head:active { opacity: 0.6; }
+  .contact-acc-label { font-size: 13px; color: var(--text2); width: 116px; flex-shrink: 0; }
+  .contact-acc-name { font-size: 15px; color: var(--text); font-weight: 500; flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .contact-acc-name.empty-val { color: var(--text3); font-weight: 400; font-style: italic; }
+  .contact-acc-chev { color: var(--text3); font-size: 13px; flex-shrink: 0; line-height: 1; transition: transform 0.15s; }
+  .contact-acc-chev.open { transform: rotate(180deg); }
+  .contact-acc-body { padding: 0 0 8px 0; }
+  .contact-acc-body .fld-ro { border-bottom: none; padding: 4px 0; }
 </style>
 </head>
 <body>
@@ -281,11 +292,6 @@ const LISTING_FIELDS = [{
   type: 'text',
   placeholder: '2.5%',
   format: 'percent'
-}, {
-  key: 'contact',
-  label: 'Contact',
-  type: 'text',
-  placeholder: 'Doorman / lockbox / etc.'
 }];
 const BUILDING_FIELDS = [{
   key: 'mgmt_company',
@@ -461,6 +467,11 @@ function migrate(data) {
     if (l.unit === undefined) l.unit = '';
     // Backfill created_at for existing rows — use index so the ordering is stable across runs
     if (!l.created_at) l.created_at = 1000000000 + counter++;
+    // Migrate the old single "contact" field into structured seller slot 1
+    if (l.fields.contact) {
+      if (!l.fields.seller_name) l.fields.seller_name = l.fields.contact;
+      delete l.fields.contact;
+    }
   });
   Object.values(data.buildings).forEach(b => {
     if (!b.fields) b.fields = {};
@@ -773,14 +784,56 @@ const CONTRACT_PARTS = [{
   type: 'email',
   placeholder: 'name@firm.com'
 }];
-function contractGroup(listing, editing, updateField, g) {
+// Read-only contact: shows the name, expands on click to reveal the rest
+// (phone/email). Improves flow when a listing has many contacts.
+function ContactRO({
+  label,
+  name,
+  details
+}) {
+  const [open, setOpen] = useState(false);
+  const hasDetails = details.some(d => d.value);
+  return /*#__PURE__*/React.createElement("div", {
+    className: "contact-acc"
+  }, /*#__PURE__*/React.createElement("button", {
+    type: "button",
+    className: "contact-acc-head",
+    onClick: () => hasDetails && setOpen(o => !o)
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "contact-acc-label"
+  }, label), /*#__PURE__*/React.createElement("span", {
+    className: "contact-acc-name" + (name ? '' : ' empty-val')
+  }, name || 'Not set'), hasDetails && /*#__PURE__*/React.createElement("span", {
+    className: "contact-acc-chev" + (open ? ' open' : '')
+  }, "⌄")), open && hasDetails && /*#__PURE__*/React.createElement("div", {
+    className: "contact-acc-body"
+  }, details.map((d, i) => /*#__PURE__*/React.createElement(ROField, {
+    key: i,
+    label: d.label,
+    value: d.value
+  }))));
+}
+function contractGroup(listing, editing, updateField, g, parts) {
+  parts = parts || CONTRACT_PARTS;
+  if (!editing) {
+    const details = parts.filter(p => p.suffix !== 'name').map(p => ({
+      label: p.label,
+      value: listing.fields[g.prefix + '_' + p.suffix]
+    }));
+    return /*#__PURE__*/React.createElement(ContactRO, {
+      key: g.prefix,
+      label: g.title,
+      name: listing.fields[g.prefix + '_name'],
+      details: details
+    });
+  }
   return /*#__PURE__*/React.createElement(React.Fragment, {
     key: g.prefix
   }, /*#__PURE__*/React.createElement("div", {
     className: "contract-grp"
-  }, g.title), CONTRACT_PARTS.map(p => {
+  }, g.title), parts.map(p => {
     const key = g.prefix + '_' + p.suffix;
-    return editing ? /*#__PURE__*/React.createElement("div", {
+    return /*#__PURE__*/React.createElement("div", {
       className: "fld",
       key: key
     }, /*#__PURE__*/React.createElement("label", null, p.label), /*#__PURE__*/React.createElement("input", {
@@ -788,11 +841,7 @@ function contractGroup(listing, editing, updateField, g) {
       placeholder: p.placeholder,
       value: listing.fields[key] || '',
       onChange: e => updateField(key, e.target.value)
-    })) : /*#__PURE__*/React.createElement(ROField, {
-      key: key,
-      label: p.label,
-      value: listing.fields[key]
-    });
+    }));
   }));
 }
 const DEAL_FIELDS = [{
@@ -856,6 +905,47 @@ function DealSection({
     className: "add-btn",
     onClick: () => setShowBroker2(true)
   }, "+ Add second buyer's broker"));
+}
+const SELLER_GROUPS = [{
+  title: "Seller",
+  prefix: 'seller'
+}];
+const SELLER2 = {
+  title: "Seller 2",
+  prefix: 'seller2'
+};
+const SELLER_PARTS = [{
+  suffix: 'name',
+  label: 'Name',
+  type: 'text',
+  placeholder: 'Full name'
+}, {
+  suffix: 'email',
+  label: 'Email',
+  type: 'email',
+  placeholder: 'name@email.com'
+}, {
+  suffix: 'phone',
+  label: 'Phone',
+  type: 'tel',
+  placeholder: '(212) 555-0100'
+}];
+function SellerSection({
+  listing,
+  editing,
+  updateField
+}) {
+  const hasSeller2 = SELLER_PARTS.some(p => listing.fields[SELLER2.prefix + '_' + p.suffix]);
+  const [showSeller2, setShowSeller2] = useState(false);
+  const renderSeller2 = hasSeller2 || showSeller2;
+  return /*#__PURE__*/React.createElement("div", {
+    className: "sec"
+  }, /*#__PURE__*/React.createElement("h3", {
+    className: "sec-h"
+  }, "Seller"), SELLER_GROUPS.map(g => contractGroup(listing, editing, updateField, g, SELLER_PARTS)), (editing ? renderSeller2 : hasSeller2) && contractGroup(listing, editing, updateField, SELLER2, SELLER_PARTS), editing && !renderSeller2 && /*#__PURE__*/React.createElement("button", {
+    className: "add-btn",
+    onClick: () => setShowSeller2(true)
+  }, "+ Add second seller contact"));
 }
 function Detail({
   listing,
@@ -1075,7 +1165,11 @@ function Detail({
     href: listing.fields.streeteasy_url,
     target: "_blank",
     rel: "noopener noreferrer"
-  }, "View on StreetEasy ↗"))), /*#__PURE__*/React.createElement("div", {
+  }, "View on StreetEasy ↗"))), /*#__PURE__*/React.createElement(SellerSection, {
+    listing: listing,
+    editing: editing,
+    updateField: updateField
+  }), /*#__PURE__*/React.createElement("div", {
     className: "sec"
   }, /*#__PURE__*/React.createElement("h3", {
     className: "sec-h"
