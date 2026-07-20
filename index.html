@@ -942,7 +942,17 @@ function SellerSection({
     className: "sec"
   }, /*#__PURE__*/React.createElement("h3", {
     className: "sec-h"
-  }, "Seller"), SELLER_GROUPS.map(g => contractGroup(listing, editing, updateField, g, SELLER_PARTS)), (editing ? renderSeller2 : hasSeller2) && contractGroup(listing, editing, updateField, SELLER2, SELLER_PARTS), editing && !renderSeller2 && /*#__PURE__*/React.createElement("button", {
+  }, "Seller"), editing ? /*#__PURE__*/React.createElement("div", {
+    className: "fld"
+  }, /*#__PURE__*/React.createElement("label", null, "Owner entity"), /*#__PURE__*/React.createElement("input", {
+    type: "text",
+    placeholder: "LLC / trust (if applicable)",
+    value: listing.fields.seller_entity || '',
+    onChange: e => updateField('seller_entity', e.target.value)
+  })) : listing.fields.seller_entity && /*#__PURE__*/React.createElement(ROField, {
+    label: "Owner entity",
+    value: listing.fields.seller_entity
+  }), SELLER_GROUPS.map(g => contractGroup(listing, editing, updateField, g, SELLER_PARTS)), (editing ? renderSeller2 : hasSeller2) && contractGroup(listing, editing, updateField, SELLER2, SELLER_PARTS), editing && !renderSeller2 && /*#__PURE__*/React.createElement("button", {
     className: "add-btn",
     onClick: () => setShowSeller2(true)
   }, "+ Add second seller contact"));
