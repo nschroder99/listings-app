@@ -469,6 +469,28 @@ function applyFieldFormat(value, format) {
   if (format === 'percent') return formatPercent(value);
   return value;
 }
+// A field counts as "filled" only if it has a real value — blanks and
+// "n/a"-style placeholders (common in co-op RET) do not count.
+function hasValue(v) {
+  if (v == null) return false;
+  const s = String(v).trim().toLowerCase();
+  return s !== '' && !['n/a', 'na', 'n.a.', 'none', '-', '–', '—'].includes(s.replace(/\s+/g, ''));
+}
+// Building type is derived, never entered: only MT/CC -> co-op, only RET ->
+// townhouse, both -> condo, neither -> unset.
+function computeBuildingType(fields) {
+  const mt = hasValue(fields.monthly_amount);
+  const ret = hasValue(fields.ret);
+  if (mt && ret) return 'condo';
+  if (mt) return 'co-op';
+  if (ret) return 'townhouse';
+  return '';
+}
+function applyBuildingType(fields) {
+  const bt = computeBuildingType(fields);
+  if (bt) fields.building_type = bt;else delete fields.building_type;
+  return fields;
+}
 function migrate(data) {
   if (!data.buildings) data.buildings = {};
   if (!data.listings) data.listings = {};
@@ -486,6 +508,8 @@ function migrate(data) {
       if (!l.fields.seller_name) l.fields.seller_name = l.fields.contact;
       delete l.fields.contact;
     }
+    // Derived building type (co-op / townhouse / condo) from MT-CC + RET
+    applyBuildingType(l.fields);
   });
   Object.values(data.buildings).forEach(b => {
     if (!b.fields) b.fields = {};
@@ -1051,10 +1075,10 @@ function Detail({
     }
   });
   const updateField = (key, val) => updateListing({
-    fields: {
+    fields: applyBuildingType({
       ...listing.fields,
       [key]: val
-    }
+    })
   });
   const updateCustom = (idx, patch) => {
     const cf = [...listing.customFields];
