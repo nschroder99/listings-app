@@ -725,7 +725,7 @@ function App() {
     onClick: () => setSortBy(k)
   }, label))), /*#__PURE__*/React.createElement("div", {
     className: "chips"
-  }, (tab === 'active' ? ['all', 'coming_soon', 'active', 'contract', 'contract_out'] : ['all', 'sold', 'archived']).map(f => /*#__PURE__*/React.createElement("button", {
+  }, (tab === 'active' ? ['all', 'coming_soon', 'active', 'contract_out', 'contract'] : ['all', 'sold', 'archived']).map(f => /*#__PURE__*/React.createElement("button", {
     key: f,
     className: 'chip ' + ((tab === 'active' ? filter : closedFilter) === f ? 'on' : ''),
     onClick: () => tab === 'active' ? setFilter(f) : setClosedFilter(f)
