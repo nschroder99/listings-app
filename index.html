@@ -1177,7 +1177,7 @@ function Detail({
     }
   }, building.area || '')), /*#__PURE__*/React.createElement("div", {
     className: "status-pick"
-  }, ['coming_soon', 'active', 'contract', 'contract_out', 'sold', 'archived'].map(s => /*#__PURE__*/React.createElement("button", {
+  }, ['coming_soon', 'active', 'contract_out', 'contract', 'sold', 'archived'].map(s => /*#__PURE__*/React.createElement("button", {
     key: s,
     disabled: !editing,
     className: listing.status === s ? 'on-' + s : '',
