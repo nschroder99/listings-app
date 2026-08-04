@@ -42,6 +42,7 @@
   .row-price { font-size: 15px; font-weight: 600; white-space: nowrap; }
   .row-meta { font-size: 12px; color: var(--text2); margin-top: 4px; }
   .badge { display: inline-block; font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 600; margin-left: 6px; vertical-align: middle; }
+  .b-coming_soon { background: #DDF0EE; color: #0F6058; }
   .b-active { background: #EAF3DE; color: #3B6D11; }
   .b-contract { background: #FAEEDA; color: #854F0B; }
   .b-contract_out { background: #E6F1FB; color: #185FA5; }
@@ -55,6 +56,7 @@
   .status-pick { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 16px; }
   .status-pick button { flex: 1 1 auto; min-width: 92px; font-size: 12px; padding: 9px 3px; border-radius: 8px; border: 0.5px solid var(--border); background: transparent; cursor: pointer; color: var(--text2); font-weight: 500; white-space: nowrap; }
   .status-pick button:disabled { cursor: default; }
+  .status-pick button.on-coming_soon { background: #DDF0EE; color: #0F6058; border-color: #7FBFB6; }
   .status-pick button.on-active { background: #EAF3DE; color: #3B6D11; border-color: #97C459; }
   .status-pick button.on-contract { background: #FAEEDA; color: #854F0B; border-color: #EF9F27; }
   .status-pick button.on-contract_out { background: #E6F1FB; color: #185FA5; border-color: #85B7EB; }
@@ -232,6 +234,7 @@ const store = {
   }
 };
 const STATUS_LABELS = {
+  coming_soon: 'Coming soon',
   active: 'Active',
   contract: 'In contract',
   contract_out: 'Contract out',
@@ -722,7 +725,7 @@ function App() {
     onClick: () => setSortBy(k)
   }, label))), /*#__PURE__*/React.createElement("div", {
     className: "chips"
-  }, (tab === 'active' ? ['all', 'active', 'contract', 'contract_out'] : ['all', 'sold', 'archived']).map(f => /*#__PURE__*/React.createElement("button", {
+  }, (tab === 'active' ? ['all', 'coming_soon', 'active', 'contract', 'contract_out'] : ['all', 'sold', 'archived']).map(f => /*#__PURE__*/React.createElement("button", {
     key: f,
     className: 'chip ' + ((tab === 'active' ? filter : closedFilter) === f ? 'on' : ''),
     onClick: () => tab === 'active' ? setFilter(f) : setClosedFilter(f)
@@ -1174,7 +1177,7 @@ function Detail({
     }
   }, building.area || '')), /*#__PURE__*/React.createElement("div", {
     className: "status-pick"
-  }, ['active', 'contract', 'contract_out', 'sold', 'archived'].map(s => /*#__PURE__*/React.createElement("button", {
+  }, ['coming_soon', 'active', 'contract', 'contract_out', 'sold', 'archived'].map(s => /*#__PURE__*/React.createElement("button", {
     key: s,
     disabled: !editing,
     className: listing.status === s ? 'on-' + s : '',
