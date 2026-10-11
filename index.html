@@ -362,13 +362,15 @@ const BUILDING_FIELDS = [{
 }, {
   key: 'doorman_num',
   label: 'Doorman #',
-  type: 'text',
-  placeholder: '(212) 555-0140'
+  type: 'tel',
+  placeholder: '(212) 555-0140',
+  format: 'phone'
 }, {
   key: 'super_num',
   label: 'Super #',
-  type: 'text',
-  placeholder: '(212) 555-0171'
+  type: 'tel',
+  placeholder: '(212) 555-0171',
+  format: 'phone'
 }];
 const SEED = {
   buildings: {
@@ -471,9 +473,28 @@ function formatPercent(s) {
   if (!/\d/.test(str)) return s;
   return str + '%';
 }
+// US phone, formatted as you type: (212) 555-0100. A leading 1 / +1 is
+// dropped, digits past ten become an extension, and other international
+// numbers (+44 ...) or anything with letters are left as typed.
+function formatPhone(s) {
+  if (!s) return s;
+  const str = String(s);
+  if (/[a-wyz]/i.test(str.replace(/ext\.?/i, 'x'))) return s;
+  if (/^\s*\+/.test(str) && !/^\s*\+\s*1/.test(str)) return s;
+  let d = str.replace(/\D/g, '');
+  if (d[0] === '1') d = d.slice(1);
+  if (!d) return str.trim() === '' ? '' : s;
+  const ext = d.slice(10);
+  d = d.slice(0, 10);
+  let out = '(' + d.slice(0, 3);
+  if (d.length > 3) out += ') ' + d.slice(3, 6);
+  if (d.length > 6) out += '-' + d.slice(6);
+  return out + (ext ? ' x' + ext : '');
+}
 function applyFieldFormat(value, format) {
   if (format === 'money') return formatMoney(value);
   if (format === 'percent') return formatPercent(value);
+  if (format === 'phone') return formatPhone(value);
   return value;
 }
 // A field counts as "filled" only if it has a real value — blanks and
@@ -878,7 +899,8 @@ const CONTRACT_PARTS = [{
   suffix: 'phone',
   label: 'Phone',
   type: 'tel',
-  placeholder: '(212) 555-0100'
+  placeholder: '(212) 555-0100',
+  format: 'phone'
 }, {
   suffix: 'email',
   label: 'Email',
@@ -919,7 +941,7 @@ function contractGroup(listing, editing, updateField, g, parts) {
   if (!editing) {
     const details = parts.filter(p => p.suffix !== 'name').map(p => ({
       label: p.label,
-      value: listing.fields[g.prefix + '_' + p.suffix]
+      value: p.format ? applyFieldFormat(listing.fields[g.prefix + '_' + p.suffix], p.format) : listing.fields[g.prefix + '_' + p.suffix]
     }));
     return /*#__PURE__*/React.createElement(ContactRO, {
       key: g.prefix,
@@ -941,7 +963,7 @@ function contractGroup(listing, editing, updateField, g, parts) {
       type: p.type,
       placeholder: p.placeholder,
       value: listing.fields[key] || '',
-      onChange: e => updateField(key, e.target.value)
+      onChange: e => updateField(key, p.format === 'phone' ? formatPhone(e.target.value) : e.target.value)
     }));
   }));
 }
@@ -1029,7 +1051,8 @@ const SELLER_PARTS = [{
   suffix: 'phone',
   label: 'Phone',
   type: 'tel',
-  placeholder: '(212) 555-0100'
+  placeholder: '(212) 555-0100',
+  format: 'phone'
 }];
 function SellerSection({
   listing,
@@ -1360,9 +1383,10 @@ function Detail({
     key: o,
     value: o
   }, o))) : /*#__PURE__*/React.createElement("input", {
+    type: f.type,
     placeholder: f.placeholder || '',
     value: building.fields[f.key] || '',
-    onChange: e => updateBField(f.key, e.target.value)
+    onChange: e => updateBField(f.key, f.format === 'phone' ? formatPhone(e.target.value) : e.target.value)
   }))), (building.customFields || []).map((cf, i) => /*#__PURE__*/React.createElement("div", {
     className: "fld",
     key: 'bcf' + i
@@ -1466,7 +1490,7 @@ function Detail({
   }, "+ Add amenity")) : /*#__PURE__*/React.createElement(React.Fragment, null, BUILDING_FIELDS.map(f => /*#__PURE__*/React.createElement(ROField, {
     key: f.key,
     label: f.label,
-    value: building.fields[f.key]
+    value: f.format === 'phone' ? formatPhone(building.fields[f.key]) : building.fields[f.key]
   })), (building.customFields || []).filter(cf => cf.label || cf.value).map((cf, i) => /*#__PURE__*/React.createElement(ROField, {
     key: 'bcf' + i,
     label: cf.label || '—',
