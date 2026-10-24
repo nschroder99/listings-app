@@ -8,9 +8,9 @@
 <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/favicon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" integrity="sha384-DGyLxAyjq0f9SPpVevD6IgztCFlnMF6oW/XQGmfe+IsZ8TqEiDrcHkMLKI6fiB/Z"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" integrity="sha384-gTGxhz21lVGYNMcdJOyq01Edg0jhn/c22nsx0kyqP0TxaV5WVdsSH1fSDUf5YJj1"></script>
+<script crossorigin src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js" integrity="sha384-0w2KAL2YHP6wKOkUDzkCDGgVvfmHnj02DHeQ6XcHOgTfFsGyonKOpShMH1x6nk9o"></script>
 <style>
   :root {
     --bg: #ffffff; --bg2: #f3f3f0; --text: #1a1a1a; --text2: #6b6b66; --text3: #9b9b96;
@@ -182,6 +182,8 @@ const STORAGE_KEY = 'showing_assistant_v1';
 const SUPABASE_URL = 'https://dlemsbbvsftxdchdsztt.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_OOvTsDO48LGHDm8h9dOv9Q_xienRnIs';
 const ROW_ID = 'main';
+// Only real StreetEasy pages may become a link; anything else (e.g. javascript:) is never put in an href.
+const streetEasyUrl = u => /^https:\/\/([a-z0-9-]+\.)*streeteasy\.com\//i.test(String(u || '').trim()) ? String(u).trim() : null;
 const sb = window.supabase && SUPABASE_URL ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
 let lastSyncError = null;
 function withTimeout(promise, ms, label) {
@@ -624,7 +626,8 @@ function App() {
       }
       if (!d) {
         d = JSON.parse(JSON.stringify(SEED));
-        await store.set(JSON.stringify(d));
+        // only seed the shared row when it was really read and empty, never after a failed or timed-out load
+        if (!lastSyncError) await store.set(JSON.stringify(d));
       }
       setData(migrate(d));
     })();
@@ -1294,9 +1297,9 @@ function Detail({
     key: 'cf' + i,
     label: cf.label || '—',
     value: cf.value
-  })), listing.fields.streeteasy_url && /*#__PURE__*/React.createElement("a", {
+  })), streetEasyUrl(listing.fields.streeteasy_url) && /*#__PURE__*/React.createElement("a", {
     className: "se-btn",
-    href: listing.fields.streeteasy_url,
+    href: streetEasyUrl(listing.fields.streeteasy_url),
     target: "_blank",
     rel: "noopener noreferrer"
   }, "View on StreetEasy ↗"))), /*#__PURE__*/React.createElement(SellerSection, {
