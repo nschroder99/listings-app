@@ -166,6 +166,18 @@
   .ref-rate { color: var(--text); font-weight: 600; white-space: nowrap; }
   .ref-note { font-size: 12px; color: var(--text3); line-height: 1.45; margin-top: 8px; }
   .ref-disclaimer { font-size: 11px; color: var(--text3); line-height: 1.45; margin-top: 14px; font-style: italic; }
+  .topbar-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+  .signout-btn { background: transparent; border: none; color: var(--text2); font-size: 13px; cursor: pointer; padding: 0; }
+  .signin { padding: 48px 24px; }
+  .signin h2 { font-size: 20px; font-weight: 600; margin: 0 0 8px; }
+  .signin p { font-size: 14px; color: var(--text2); line-height: 1.5; margin: 0 0 20px; text-wrap: pretty; }
+  .signin input { width: 100%; height: 46px; padding: 0 12px; border: 0.5px solid var(--border2); border-radius: 8px; font-size: 17px; background: var(--bg); color: var(--text); margin-bottom: 12px; }
+  .signin input:focus { outline: none; border-color: var(--info); }
+  .signin input.code { font-size: 24px; letter-spacing: 6px; text-align: center; }
+  .signin-btn { width: 100%; padding: 13px; border: none; border-radius: 8px; background: var(--info); color: #fff; font-size: 16px; font-weight: 600; cursor: pointer; }
+  .signin-btn:disabled { opacity: 0.5; cursor: default; }
+  .signin-link { display: block; margin: 16px auto 0; background: transparent; border: none; color: var(--text2); font-size: 14px; cursor: pointer; }
+  .signin-err { color: var(--danger); font-size: 14px; margin: 0 0 12px; }
 </style>
 </head>
 <body>
@@ -223,12 +235,15 @@ const store = {
     if (sb) {
       try {
         const {
+          data,
           error
         } = await withTimeout(sb.from('app_state').update({
           data: JSON.parse(val),
           updated_at: new Date().toISOString()
-        }).eq('id', ROW_ID), 8000, 'save');
+        }).eq('id', ROW_ID).select('id'), 8000, 'save');
         if (error) throw error;
+        // RLS hides the row instead of erroring, so zero rows back means nothing was saved
+        if (!data || !data.length) throw new Error('not allowed to save');
         lastSyncError = null;
         return true;
       } catch (e) {
@@ -602,6 +617,132 @@ function BuildingPicker({
     onClick: () => onCreate(q.trim())
   }, "+ Create new building", q ? ' "' + q + '"' : '')));
 }
+// Email one-time code. Accounts are pre-created for the team only (shouldCreateUser: false), and the
+// session persists in this browser, so each phone/computer verifies once.
+function SignIn() {
+  const [email, setEmail] = useState(() => {
+    try {
+      return localStorage.getItem('showing_assistant_email') || '';
+    } catch (e) {
+      return '';
+    }
+  });
+  const [code, setCode] = useState('');
+  const [sent, setSent] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const sendCode = async e => {
+    e.preventDefault();
+    const addr = email.trim().toLowerCase();
+    if (!addr) return;
+    setBusy(true);
+    setErr('');
+    const {
+      error
+    } = await sb.auth.signInWithOtp({
+      email: addr,
+      options: {
+        shouldCreateUser: false
+      }
+    });
+    setBusy(false);
+    if (error) {
+      setErr(/signups? not allowed|not found/i.test(error.message) ? 'That email isn’t on the team list.' : error.message);
+      return;
+    }
+    try {
+      localStorage.setItem('showing_assistant_email', addr);
+    } catch (e) {}
+    setEmail(addr);
+    setSent(true);
+  };
+  const verify = async e => {
+    e.preventDefault();
+    setBusy(true);
+    setErr('');
+    const {
+      error
+    } = await sb.auth.verifyOtp({
+      email,
+      token: code.trim(),
+      type: 'email'
+    });
+    setBusy(false);
+    if (error) setErr(/expired|invalid/i.test(error.message) ? 'That code is wrong or has expired.' : error.message);
+  };
+  if (!sent) return /*#__PURE__*/React.createElement("form", {
+    className: "signin",
+    onSubmit: sendCode
+  }, /*#__PURE__*/React.createElement("h2", null, "Showing assistant"), /*#__PURE__*/React.createElement("p", null, "Enter your work email and we’ll send you a 6-digit code. You only need to do this once on each device."), err && /*#__PURE__*/React.createElement("div", {
+    className: "signin-err"
+  }, err), /*#__PURE__*/React.createElement("input", {
+    type: "email",
+    autoComplete: "email",
+    placeholder: "you@elliman.com",
+    value: email,
+    onChange: e => setEmail(e.target.value),
+    autoFocus: true
+  }), /*#__PURE__*/React.createElement("button", {
+    className: "signin-btn",
+    disabled: busy || !email.trim()
+  }, busy ? 'Sending…' : 'Send code'));
+  return /*#__PURE__*/React.createElement("form", {
+    className: "signin",
+    onSubmit: verify
+  }, /*#__PURE__*/React.createElement("h2", null, "Check your email"), /*#__PURE__*/React.createElement("p", null, "We sent a 6-digit code to ", email, "."), err && /*#__PURE__*/React.createElement("div", {
+    className: "signin-err"
+  }, err), /*#__PURE__*/React.createElement("input", {
+    className: "code",
+    inputMode: "numeric",
+    autoComplete: "one-time-code",
+    maxLength: 6,
+    placeholder: "000000",
+    value: code,
+    onChange: e => setCode(e.target.value.replace(/\D/g, '')),
+    autoFocus: true
+  }), /*#__PURE__*/React.createElement("button", {
+    className: "signin-btn",
+    disabled: busy || code.length !== 6
+  }, busy ? 'Checking…' : 'Verify'), /*#__PURE__*/React.createElement("button", {
+    type: "button",
+    className: "signin-link",
+    onClick: () => {
+      setSent(false);
+      setCode('');
+      setErr('');
+    }
+  }, "Use a different email or resend"));
+}
+async function signOut() {
+  if (!window.confirm('Sign out on this device? You’ll need a new email code to get back in.')) return;
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch (e) {}
+  await sb.auth.signOut();
+  window.location.reload();
+}
+// Shows the sign-in screen until this device has a session; the app (and its data) loads only after.
+function Root() {
+  const [session, setSession] = useState(undefined);
+  useEffect(() => {
+    if (!sb) return;
+    sb.auth.getSession().then(({
+      data
+    }) => setSession(data.session));
+    const {
+      data: sub
+    } = sb.auth.onAuthStateChange((_event, s) => setSession(s));
+    return () => sub.subscription.unsubscribe();
+  }, []);
+  if (!sb) return /*#__PURE__*/React.createElement("div", {
+    className: "empty"
+  }, "Couldn’t load the sync library. Check your connection and reload.");
+  if (session === undefined) return /*#__PURE__*/React.createElement("div", {
+    className: "loading"
+  }, "Loading…");
+  if (!session) return /*#__PURE__*/React.createElement(SignIn, null);
+  return /*#__PURE__*/React.createElement(App, null);
+}
 function App() {
   const [data, setData] = useState(null);
   const [tab, setTab] = useState('active');
@@ -727,9 +868,14 @@ function App() {
     }
   }, "⚠ Working offline — ", lastSyncError, ". Tap to retry."), /*#__PURE__*/React.createElement("div", {
     className: "topbar"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "topbar-head"
   }, /*#__PURE__*/React.createElement("h2", {
     className: "topbar-title"
-  }, "Showing assistant"), /*#__PURE__*/React.createElement("div", {
+  }, "Showing assistant"), /*#__PURE__*/React.createElement("button", {
+    className: "signout-btn",
+    onClick: signOut
+  }, "Sign out")), /*#__PURE__*/React.createElement("div", {
     className: "seg"
   }, /*#__PURE__*/React.createElement("button", {
     className: tab === 'active' ? 'on' : '',
@@ -1595,7 +1741,7 @@ function Detail({
     }
   }));
 }
-ReactDOM.createRoot(document.getElementById('root')).render(/*#__PURE__*/React.createElement(App, null));
+ReactDOM.createRoot(document.getElementById('root')).render(/*#__PURE__*/React.createElement(Root, null));
 </script>
 </body>
 </html>
