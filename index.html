@@ -849,6 +849,10 @@ function App() {
       return displayName(a, ab).localeCompare(displayName(b, bb));
     }
     if (sortBy === 'newest') {
+      // Closed tab: most recently closed first. Listings closed before
+      // closed_at existed have none and fall in after, by when they were added.
+      if (tab === 'closed' && !!a.closed_at !== !!b.closed_at) return a.closed_at ? -1 : 1;
+      if (tab === 'closed' && a.closed_at) return b.closed_at - a.closed_at;
       return (b.created_at || 0) - (a.created_at || 0);
     }
     // price (default) — descending; missing prices sort last
@@ -1243,16 +1247,26 @@ function Detail({
   const [editing, setEditing] = useState(!!startEditing);
   const [confirmDel, setConfirmDel] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
-  const updateListing = patch => persist({
-    ...data,
-    listings: {
-      ...data.listings,
-      [listing.id]: {
-        ...listing,
-        ...patch
-      }
+  const updateListing = patch => {
+    // Remember when a listing was closed (sold/archived) so the Closed tab's
+    // "Newest" sort can go by it; reopening clears it.
+    if (patch.status && patch.status !== listing.status) {
+      const was = CLOSED_STATUSES.includes(listing.status);
+      const now = CLOSED_STATUSES.includes(patch.status);
+      if (now && !was) patch = { ...patch, closed_at: Date.now() };
+      if (!now && was) patch = { ...patch, closed_at: null };
     }
-  });
+    persist({
+      ...data,
+      listings: {
+        ...data.listings,
+        [listing.id]: {
+          ...listing,
+          ...patch
+        }
+      }
+    });
+  };
   const updateField = (key, val) => updateListing({
     fields: applyBuildingType({
       ...listing.fields,
